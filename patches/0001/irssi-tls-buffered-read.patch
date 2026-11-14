@@ -1,0 +1,276 @@
+--- a/src/core/network-openssl.c
++++ b/src/core/network-openssl.c
+@@ -352,11 +352,73 @@
+ 	return chan->giochan->funcs->io_close(handle, gerr);
+ }
+ 
++typedef struct {
++	GSource source;
++	GPollFD poll;
++	GIOChannel *channel;
++	GIOCondition condition;
++} SSLWatch;
++
++static GIOCondition ssl_watch_condition(SSLWatch *watch)
++{
++	GIOSSLChannel *chan = (GIOSSLChannel *)watch->channel;
++	GIOCondition ready = watch->poll.revents;
++
++	/* SSL_read can leave decrypted bytes after draining the socket. They
++	 * must wake the next bounded read batch even without another packet. */
++	if ((watch->condition & G_IO_IN) && SSL_pending(chan->ssl) > 0)
++		ready |= G_IO_IN;
++	return ready & watch->condition;
++}
++
++static gboolean ssl_watch_prepare(GSource *source, gint *timeout)
++{
++	SSLWatch *watch = (SSLWatch *)source;
++	GIOSSLChannel *chan = (GIOSSLChannel *)watch->channel;
++
++	*timeout = -1;
++	return (watch->condition & G_IO_IN) && SSL_pending(chan->ssl) > 0;
++}
++
++static gboolean ssl_watch_check(GSource *source)
++{
++	return ssl_watch_condition((SSLWatch *)source) != 0;
++}
++
++static gboolean ssl_watch_dispatch(GSource *source, GSourceFunc callback, gpointer data)
++{
++	SSLWatch *watch = (SSLWatch *)source;
++	GIOFunc function = (GIOFunc)callback;
++
++	g_return_val_if_fail(function != NULL, G_SOURCE_REMOVE);
++	return function(watch->channel, ssl_watch_condition(watch), data);
++}
++
++static void ssl_watch_finalize(GSource *source)
++{
++	g_io_channel_unref(((SSLWatch *)source)->channel);
++}
++
++static GSourceFuncs ssl_watch_funcs = {
++	ssl_watch_prepare,
++	ssl_watch_check,
++	ssl_watch_dispatch,
++	ssl_watch_finalize,
++	NULL, NULL
++};
++
+ static GSource *irssi_ssl_create_watch(GIOChannel *handle, GIOCondition cond)
+ {
+ 	GIOSSLChannel *chan = (GIOSSLChannel *)handle;
+-
+-	return chan->giochan->funcs->io_create_watch(handle, cond);
++	GSource *source = g_source_new(&ssl_watch_funcs, sizeof(SSLWatch));
++	SSLWatch *watch = (SSLWatch *)source;
++
++	watch->channel = g_io_channel_ref(handle);
++	watch->condition = cond;
++	watch->poll.fd = chan->fd;
++	watch->poll.events = cond;
++	g_source_add_poll(source, &watch->poll);
++	return source;
+ }
+ 
+ static GIOStatus irssi_ssl_set_flags(GIOChannel *handle, GIOFlags flags, GError **gerr)
+--- a/tests/irc/core/meson.build
++++ b/tests/irc/core/meson.build
+@@ -43,3 +43,25 @@
+     '--tap',
+   ],
+   protocol : 'tap')
++
++# A quiet TLS peer must not leave decrypted IRC messages stranded in OpenSSL.
++python3 = find_program('python3', required : false)
++openssl_program = find_program('openssl', required : false)
++if python3.found() and openssl_program.found()
++  test_tls_receive = executable(
++    'test-tls-receive',
++    files('test-tls-receive.c'),
++    link_with : [libconfig_a, libcore_a, libfe_common_core_a, libirc_core_a],
++    include_directories : rootinc,
++    implicit_include_directories : false,
++    dependencies : dep,
++  )
++  test(
++    'TLS buffered receive',
++    python3,
++    args : [files('tls-receive.py'), test_tls_receive, openssl_program.path()],
++    timeout : 30,
++  )
++else
++  message('Skipping TLS buffered receive test: Python 3 and openssl CLI are required')
++endif
+--- /dev/null
++++ b/tests/irc/core/test-tls-receive.c
+@@ -0,0 +1,94 @@
++/* Exercise the real IRC receive loop against tls-receive.py's local peer. */
++#include <irssi/src/common.h>
++#include <irssi/src/core/args.h>
++#include <irssi/src/core/chat-protocols.h>
++#include <irssi/src/core/core.h>
++#include <irssi/src/core/servers.h>
++#include <irssi/src/core/servers-setup.h>
++#include <irssi/src/core/settings.h>
++#include <irssi/src/core/signals.h>
++#include <irssi/src/irc/core/irc.h>
++#include <irssi/src/irc/core/irc-servers.h>
++
++#define MODULE_NAME "test-tls-receive"
++
++void irc_core_init(void);
++void irc_core_deinit(void);
++
++static GMainLoop *loop;
++static unsigned int received;
++
++static void registered(IRC_SERVER_REC *server)
++{
++	irc_send_cmd(server, "JOIN #test");
++}
++
++static void message(IRC_SERVER_REC *server, const char *args, const char *nick,
++                    const char *address)
++{
++	char *target, *body, *params, *expected;
++
++	params = event_get_params(args, 2 | PARAM_FLAG_GETREST, &target, &body);
++	g_assert_cmpstr(target, ==, "#test");
++	g_assert_cmpstr(nick, ==, "sender");
++	expected = g_strdup_printf("message-%03u ", received);
++	g_assert_true(g_str_has_prefix(body, expected));
++	g_free(expected);
++	g_free(params);
++	if (++received == 100)
++		g_main_loop_quit(loop);
++}
++
++static gboolean timed_out(gpointer data)
++{
++	g_main_loop_quit(loop);
++	return G_SOURCE_CONTINUE;
++}
++
++int main(int argc, char **argv)
++{
++	SERVER_CONNECT_REC *conn;
++	SERVER_REC *server;
++	guint timeout;
++
++	g_assert_cmpint(argc, ==, 4);
++	core_preinit(argv[0]);
++	irssi_gui = IRSSI_GUI_NONE;
++	args_execute(0, NULL);
++	core_init();
++	irc_core_init();
++	settings_add_str("lookandfeel", "term_charset", "UTF-8");
++	signal_add("event connected", (SIGNAL_FUNC) registered);
++	signal_add("event privmsg", (SIGNAL_FUNC) message);
++	signal_emit("irssi init finished", 0);
++	loop = g_main_loop_new(NULL, FALSE);
++	conn = server_create_conn(chat_protocol_lookup("IRC"), "127.0.0.1",
++	                          atoi(argv[1]), NULL, "", argv[2]);
++	g_assert_nonnull(conn);
++	conn->use_tls = TRUE;
++	conn->tls_verify = TRUE;
++	g_free(conn->tls_cafile);
++	conn->tls_cafile = g_strdup(argv[3]);
++	conn->no_autojoin_channels = TRUE;
++	conn->no_autosendcmd = TRUE;
++	server = server_connect(conn);
++	g_assert_nonnull(server);
++	server_ref(server);
++	server->no_reconnect = TRUE;
++	timeout = g_timeout_add_seconds(8, timed_out, NULL);
++	g_main_loop_run(loop);
++	g_source_remove(timeout);
++	g_printerr("%s received %u/100 messages\n", argv[2], received);
++	if (!server->disconnected) {
++		server->connection_lost = TRUE;
++		server_disconnect(server);
++	}
++	server_unref(server);
++	server_connect_unref(conn);
++	signal_remove("event privmsg", (SIGNAL_FUNC) message);
++	signal_remove("event connected", (SIGNAL_FUNC) registered);
++	irc_core_deinit();
++	core_deinit();
++	g_main_loop_unref(loop);
++	return received == 100 ? 0 : 1;
++}
+--- /dev/null
++++ b/tests/irc/core/tls-receive.py
+@@ -0,0 +1,70 @@
++"""Both clients must drain a TLS record even when the server then goes idle."""
++import os
++import socket
++import ssl
++import subprocess
++import sys
++import tempfile
++import threading
++
++with tempfile.TemporaryDirectory() as home, socket.socket() as listener:
++    certificate = os.path.join(home, 'cert.pem')
++    key = os.path.join(home, 'key.pem')
++    subprocess.run([sys.argv[2], 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
++                    '-keyout', key, '-out', certificate, '-days', '1',
++                    '-subj', '/CN=127.0.0.1'], check=True, capture_output=True)
++    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
++    context.load_cert_chain(certificate, key)
++    listener.bind(('127.0.0.1', 0))
++    listener.listen()
++    listener.settimeout(12)
++    errors = []
++
++    def serve():
++        try:
++            with listener.accept()[0] as raw, context.wrap_socket(raw, server_side=True) as peer:
++                peer.settimeout(12)
++                stream = peer.makefile('rb')
++                nick = None
++                for line in stream:
++                    line = line.decode().strip()
++                    if line.startswith('CAP LS'):
++                        peer.sendall(b':mock CAP * LS :\r\n')
++                    elif line.startswith('NICK '):
++                        nick = line.split()[1]
++                    elif line.startswith('USER '):
++                        peer.sendall((f':mock 001 {nick} :Welcome\r\n'
++                                      f':mock 005 {nick} CHANTYPES=# PREFIX=(ov)@+ :supported\r\n'
++                                      f':mock 376 {nick} :End of MOTD\r\n').encode())
++                    elif line.startswith('JOIN #test'):
++                        peer.sendall((f':{nick}!u@host JOIN :#test\r\n'
++                                      f':mock 353 {nick} = #test :{nick} sender\r\n'
++                                      f':mock 366 {nick} #test :End of NAMES\r\n').encode())
++                        # One record bigger than the client's socket-read budget.
++                        payload = ''.join(f':sender!u@host PRIVMSG #test :message-{i:03d} '
++                                          + 'x' * 100 + '\r\n' for i in range(100))
++                        peer.sendall(payload.encode())
++                        # No more writes: buffered messages must arrive without
++                        # relying on a later packet to wake the client.
++                    elif line.startswith('QUIT '):
++                        break
++        except Exception as error:
++            errors.append(error)
++
++    workers = [threading.Thread(target=serve) for _ in range(2)]
++    for worker in workers:
++        worker.start()
++    env = {**os.environ, 'HOME': home, 'XDG_CONFIG_HOME': os.path.join(home, '.config')}
++    clients = [subprocess.Popen([sys.argv[1], str(listener.getsockname()[1]), nick, certificate], env=env)
++               for nick in ('receiver1', 'receiver2')]
++    try:
++        results = [client.wait(timeout=12) for client in clients]
++    finally:
++        for client in clients:
++            if client.poll() is None:
++                client.kill()
++            client.wait()
++    for worker in workers:
++        worker.join(timeout=12)
++    assert results == [0, 0], (results, errors)
++    assert not errors, errors

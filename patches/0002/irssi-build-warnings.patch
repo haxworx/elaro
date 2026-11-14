@@ -1,0 +1,365 @@
+--- a/src/core/levels.c
++++ b/src/core/levels.c
+@@ -166,8 +166,7 @@
+         if (str->len > 0)
+ 		g_string_truncate(str, str->len-1);
+ 
+-	ret = str->str;
+-	g_string_free(str, FALSE);
++	ret = g_string_free(str, FALSE);
+ 
+ 	return ret;
+ }
+--- a/src/core/misc.c
++++ b/src/core/misc.c
+@@ -261,8 +261,7 @@
+ 		list = list->next;
+ 	}
+ 
+-        ret = str->str;
+-	g_string_free(str, FALSE);
++        ret = g_string_free(str, FALSE);
+ 	return ret;
+ }
+ 
+@@ -280,8 +279,7 @@
+ 		list = list->next;
+ 	}
+ 
+-        ret = str->str;
+-	g_string_free(str, FALSE);
++        ret = g_string_free(str, FALSE);
+ 	return ret;
+ }
+ 
+--- a/src/core/modules-load.c
++++ b/src/core/modules-load.c
+@@ -104,6 +104,23 @@
+         return g_strdup(name);
+ }
+ 
++/* Preserve module filename construction without deprecated g_module_build_path. */
++static char *module_path_build(const char *directory, const char *name)
++{
++	char *filename, *path;
++
++#ifdef G_OS_WIN32
++	filename = g_str_has_suffix(name, "." G_MODULE_SUFFIX)
++	               ? g_strdup(name) : g_strconcat(name, "." G_MODULE_SUFFIX, NULL);
++#else
++	filename = g_str_has_prefix(name, "lib")
++	               ? g_strdup(name) : g_strconcat("lib", name, "." G_MODULE_SUFFIX, NULL);
++#endif
++	path = g_build_filename(directory, filename, NULL);
++	g_free(filename);
++	return path;
++}
++
+ static GModule *module_open(const char *name, int *found)
+ {
+ 	struct stat statbuf;
+@@ -116,7 +133,7 @@
+ 	else {
+ 		/* first try from home dir */
+ 		str = g_strdup_printf("%s/modules", get_irssi_dir());
+-		path = g_module_build_path(str, name);
++		path = module_path_build(str, name);
+ 		g_free(str);
+ 
+ 		if (stat(path, &statbuf) == 0) {
+@@ -128,7 +145,7 @@
+ 
+ 		/* module not found from home dir, try global module dir */
+ 		g_free(path);
+-		path = g_module_build_path(MODULEDIR, name);
++		path = module_path_build(MODULEDIR, name);
+ 	}
+ 
+ 	*found = stat(path, &statbuf) == 0;
+--- a/src/core/network-openssl.c
++++ b/src/core/network-openssl.c
+@@ -33,6 +33,19 @@
+ #include <openssl/pem.h>
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
++
++/* OpenSSL 4 made certificate accessors return const data. Keep the older
++ * signatures for OpenSSL 1.x/3.x and LibreSSL. */
++#if OPENSSL_VERSION_NUMBER >= 0x40000000L && !defined(LIBRESSL_VERSION_NUMBER)
++#define TLS_CONST const
++#else
++#define TLS_CONST
++#endif
++
++/* The length accessor was renamed in OpenSSL 4.1. */
++#if OPENSSL_VERSION_NUMBER < 0x40100000L || defined(LIBRESSL_VERSION_NUMBER)
++#define ASN1_STRING_get_length(x) ASN1_STRING_length(x)
++#endif
+ 
+ /* OpenSSL 1.1.0 introduced some backward-incompatible changes to the api */
+ #if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && \
+@@ -113,7 +126,7 @@
+ 	/* Safe to treat as an ASCII string possibly holding a DNS name */
+ 	dnsname = (char *) ASN1_STRING_data(gn->d.ia5);
+ 
+-	if (has_internal_nul(dnsname, ASN1_STRING_length(gn->d.ia5))) {
++	if (has_internal_nul(dnsname, ASN1_STRING_get_length(gn->d.ia5))) {
+ 		g_warning("Internal NUL in subjectAltName");
+ 		return NULL;
+ 	}
+@@ -122,11 +135,11 @@
+ }
+ 
+ /* tls_text_name - extract certificate property value by name */
+-static char *tls_text_name(X509_NAME *name, int nid)
++static char *tls_text_name(TLS_CONST X509_NAME *name, int nid)
+ {
+ 	int     pos;
+-	X509_NAME_ENTRY *entry;
+-	ASN1_STRING *entry_str;
++	TLS_CONST X509_NAME_ENTRY *entry;
++	TLS_CONST ASN1_STRING *entry_str;
+ 	int     utf8_length;
+ 	unsigned char *utf8_value;
+ 	char *result;
+@@ -494,8 +507,15 @@
+ 			cert = PEM_read_X509(fp, NULL, get_pem_password_callback, (void *)mypass);
+ 			if (cert != NULL) {
+ 				/* Only the expiration date is checked right now */
+-				if (X509_cmp_current_time(X509_get_notAfter(cert))  <= 0 ||
++#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
++				time_t now = time(NULL);
++				int before = ASN1_TIME_cmp_time_t(X509_get_notBefore(cert), now);
++				int after = ASN1_TIME_cmp_time_t(X509_get_notAfter(cert), now);
++				if (after <= 0 || before > 0 || before == -2)
++#else
++				if (X509_cmp_current_time(X509_get_notAfter(cert)) <= 0 ||
+ 				    X509_cmp_current_time(X509_get_notBefore(cert)) >= 0)
++#endif
+ 					g_warning("The client certificate is expired");
+ 
+ 				ERR_clear_error();
+@@ -682,16 +702,16 @@
+ static void set_peer_cert_chain_info(TLS_REC *tls, SSL *ssl)
+ {
+ 	int nid;
+-	char *key = NULL;
+-	char *value = NULL;
++	const char *key = NULL;
++	const char *value = NULL;
+ 	STACK_OF(X509) *chain = NULL;
+ 	int i;
+ 	int j;
+ 	TLS_CERT_REC *cert_rec = NULL;
+-	X509_NAME *name = NULL;
+-	X509_NAME_ENTRY *entry = NULL;
++	TLS_CONST X509_NAME *name = NULL;
++	TLS_CONST X509_NAME_ENTRY *entry = NULL;
+ 	TLS_CERT_ENTRY_REC *tls_cert_entry_rec = NULL;
+-	ASN1_STRING *data = NULL;
++	TLS_CONST ASN1_STRING *data = NULL;
+ 
+ 	g_return_if_fail(tls != NULL);
+ 	g_return_if_fail(ssl != NULL);
+@@ -711,13 +731,13 @@
+ 			entry = X509_NAME_get_entry(name, j);
+ 
+ 			nid = OBJ_obj2nid(X509_NAME_ENTRY_get_object(entry));
+-			key = (char *)OBJ_nid2sn(nid);
++			key = OBJ_nid2sn(nid);
+ 
+ 			if (key == NULL)
+-				key = (char *)OBJ_nid2ln(nid);
++				key = OBJ_nid2ln(nid);
+ 
+ 			data = X509_NAME_ENTRY_get_data(entry);
+-			value = (char *)ASN1_STRING_data(data);
++			value = (const char *)ASN1_STRING_data(data);
+ 
+ 			tls_cert_entry_rec = tls_cert_entry_create_rec(key, value);
+ 			tls_cert_rec_append_subject_entry(cert_rec, tls_cert_entry_rec);
+@@ -730,13 +750,13 @@
+ 			entry = X509_NAME_get_entry(name, j);
+ 
+ 			nid = OBJ_obj2nid(X509_NAME_ENTRY_get_object(entry));
+-			key = (char *)OBJ_nid2sn(nid);
++			key = OBJ_nid2sn(nid);
+ 
+ 			if (key == NULL)
+-				key = (char *)OBJ_nid2ln(nid);
++				key = OBJ_nid2ln(nid);
+ 
+ 			data = X509_NAME_ENTRY_get_data(entry);
+-			value = (char *)ASN1_STRING_data(data);
++			value = (const char *)ASN1_STRING_data(data);
+ 
+ 			tls_cert_entry_rec = tls_cert_entry_create_rec(key, value);
+ 			tls_cert_rec_append_issuer_entry(cert_rec, tls_cert_entry_rec);
+@@ -754,11 +774,15 @@
+ 
+ 	/* OPENSSL_NO_EC is for solaris 11.3 (2016), github ticket #598 */
+ #ifndef OPENSSL_NO_EC
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(LIBRESSL_VERSION_NUMBER)
++	char group_name[128];
++#else
+ 	EC_KEY *ec_key = NULL;
++	int nid;
++#endif
+ #endif
+ 	char *ephemeral_key_algorithm = NULL;
+-	char *cname = NULL;
+-	int nid;
++	const char *cname = NULL;
+ 
+ 	g_return_if_fail(tls != NULL);
+ 	g_return_if_fail(ssl != NULL);
+@@ -772,10 +796,15 @@
+ 
+ #ifndef OPENSSL_NO_EC
+ 			case EVP_PKEY_EC:
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L && !defined(LIBRESSL_VERSION_NUMBER)
++				cname = EVP_PKEY_get_group_name(ephemeral_key, group_name,
++				                                sizeof(group_name), NULL) ? group_name : "Unknown";
++#else
+ 				ec_key = EVP_PKEY_get1_EC_KEY(ephemeral_key);
+ 				nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec_key));
+ 				EC_KEY_free(ec_key);
+-				cname = (char *)OBJ_nid2sn(nid);
++				cname = OBJ_nid2sn(nid);
++#endif
+ 				ephemeral_key_algorithm = g_strdup_printf("ECDH: %s", cname);
+ 
+ 				tls_rec_set_ephemeral_key_algorithm(tls, ephemeral_key_algorithm);
+@@ -830,7 +859,7 @@
+ 	int ret, err;
+ 	const char *errstr = NULL;
+ 	X509 *cert = NULL;
+-	X509_PUBKEY *pubkey = NULL;
++	TLS_CONST X509_PUBKEY *pubkey = NULL;
+ 	int pubkey_size = 0;
+ 	unsigned char *pubkey_der = NULL;
+ 	unsigned char *pubkey_der_tmp = NULL;
+--- a/src/core/servers.c
++++ b/src/core/servers.c
+@@ -134,8 +134,7 @@
+ 	}
+ 	g_free(tag);
+ 
+-	tag = str->str;
+-	g_string_free(str, FALSE);
++	tag = g_string_free(str, FALSE);
+ 	return tag;
+ }
+ 
+--- a/src/core/special-vars.c
++++ b/src/core/special-vars.c
+@@ -88,8 +88,7 @@
+ 	}
+ 	if (str->len > 0) g_string_truncate(str, str->len-1);
+ 
+-	ret = str->str;
+-	g_string_free(str, FALSE);
++	ret = g_string_free(str, FALSE);
+ 	return ret;
+ }
+ 
+@@ -412,8 +411,7 @@
+ 		}
+ 	}
+ 
+-	ret = str->str;
+-	g_string_free(str, FALSE);
++	ret = g_string_free(str, FALSE);
+ 	return ret;
+ }
+ 
+@@ -604,8 +602,7 @@
+ 	}
+ 	g_strfreev(arglist);
+ 
+-	ret = str->str;
+-	g_string_free(str, FALSE);
++	ret = g_string_free(str, FALSE);
+ 	return ret;
+ }
+ 
+--- a/src/irc/core/bans.c
++++ b/src/irc/core/bans.c
+@@ -106,8 +106,7 @@
+ 	if (str->len > 0)
+ 		g_string_truncate(str, str->len-1);
+ 
+-	ret = str->str;
+-	g_string_free(str, FALSE);
++	ret = g_string_free(str, FALSE);
+         return ret;
+ }
+ 
+--- a/src/irc/core/irc-servers.c
++++ b/src/irc/core/irc-servers.c
+@@ -873,8 +873,7 @@
+ 		if (use_keys) g_string_append_printf(chans, " %s", keys->str);
+ 	}
+ 
+-	ret = chans->str;
+-	g_string_free(chans, FALSE);
++	ret = g_string_free(chans, FALSE);
+ 	g_string_free(keys, TRUE);
+ 
+ 	return ret;
+--- a/src/irc/core/modes.c
++++ b/src/irc/core/modes.c
+@@ -443,8 +443,7 @@
+ 	}
+ 	g_free(dup);
+ 
+-	modestr = newmode->str;
+-	g_string_free(newmode, FALSE);
++	modestr = g_string_free(newmode, FALSE);
+ 	return modestr;
+ }
+ 
+@@ -755,8 +754,7 @@
+ 	}
+ 
+         if (str->len > 0) g_string_truncate(str, str->len-1);
+-	ret = str->str;
+-	g_string_free(str, FALSE);
++	ret = g_string_free(str, FALSE);
+ 	g_strfreev(matches);
+ 	cmd_params_free(free_arg);
+ 
+--- a/src/irc/dcc/dcc-get.c
++++ b/src/irc/dcc/dcc-get.c
+@@ -88,8 +88,7 @@
+ 		num++;
+ 	} while (stat(newname->str, &statbuf) == 0);
+ 
+-	ret = newname->str;
+-	g_string_free(newname, FALSE);
++	ret = g_string_free(newname, FALSE);
+ 	return ret;
+ }
+ 
+@@ -416,8 +415,7 @@
+ 		out = g_string_append(out, params[pos]);
+ 	}
+ 
+-	ret = out->str;
+-	g_string_free(out, FALSE);
++	ret = g_string_free(out, FALSE);
+ 	return ret;
+ }
+ 
+--- a/src/lib-config/write.c
++++ b/src/lib-config/write.c
+@@ -108,8 +108,7 @@
+ 
+ 	g_string_append_c(str, '"');
+ 
+-	ret = str->str;
+-	g_string_free(str, FALSE);
++	ret = g_string_free(str, FALSE);
+ 	return ret;
+ }
+ 

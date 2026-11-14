@@ -1,0 +1,69 @@
+/* Menu artwork from Evisum. Keep application assets in one archive. */
+#define ELARO_ICON(name_, image_) \
+group { \
+   name: name_; \
+   min: 20 20; \
+   parts { \
+      part { \
+         name: "icon"; \
+         type: IMAGE; \
+         mouse_events: 0; \
+         description { \
+            state: "default" 0.0; \
+            aspect: 1.0 1.0; \
+            aspect_preference: BOTH; \
+            image.normal: image_; \
+         } \
+      } \
+   } \
+}
+
+images {
+   image: "menu.png" COMP;
+   image: "elaro.png" COMP;
+   image: "person.svg" COMP;
+}
+
+/* Soft edges without frame borders or a title background. */
+#define ELARO_SHADOW_BAND(name_, top_, bottom_, alpha_) \
+part { \
+   name: name_; \
+   type: RECT; \
+   mouse_events: 0; \
+   description { \
+      state: "default" 0.0; \
+      rel1.relative: 0.0 top_; \
+      rel2.relative: 1.0 bottom_; \
+      color: 0 0 0 alpha_; \
+   } \
+}
+
+collections {
+   ELARO_ICON("elaro/icons/menu", "menu.png")
+   ELARO_ICON("elaro/icons/application", "elaro.png")
+   ELARO_ICON("elaro/icons/person", "person.svg")
+   group {
+      name: "elaro/input/shadow";
+      min: 0 6;
+      parts {
+         ELARO_SHADOW_BAND("fade5", 0.0, 0.166667, 2)
+         ELARO_SHADOW_BAND("fade4", 0.166667, 0.333333, 5)
+         ELARO_SHADOW_BAND("fade3", 0.333333, 0.5, 10)
+         ELARO_SHADOW_BAND("fade2", 0.5, 0.666667, 18)
+         ELARO_SHADOW_BAND("fade1", 0.666667, 0.833333, 28)
+         ELARO_SHADOW_BAND("edge", 0.833333, 1.0, 40)
+      }
+   }
+   group {
+      name: "elaro/header/shadow";
+      min: 0 6;
+      parts {
+         ELARO_SHADOW_BAND("edge", 0.0, 0.166667, 40)
+         ELARO_SHADOW_BAND("fade1", 0.166667, 0.333333, 28)
+         ELARO_SHADOW_BAND("fade2", 0.333333, 0.5, 18)
+         ELARO_SHADOW_BAND("fade3", 0.5, 0.666667, 10)
+         ELARO_SHADOW_BAND("fade4", 0.666667, 0.833333, 5)
+         ELARO_SHADOW_BAND("fade5", 0.833333, 1.0, 2)
+      }
+   }
+}

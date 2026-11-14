@@ -1,0 +1,677 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the elaro package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: elaro\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-13 03:51+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/engine/elaro_engine.c:287
+#, c-format
+msgid "* %s is now known as %s"
+msgstr ""
+
+#: src/engine/elaro_engine.c:289
+#, c-format
+msgid "* %s has quit (%s)"
+msgstr ""
+
+#: src/engine/elaro_engine.c:291
+#, c-format
+msgid "* %s has quit"
+msgstr ""
+
+#: src/engine/elaro_engine.c:392
+#, c-format
+msgid "* %s has joined %s"
+msgstr ""
+
+#: src/engine/elaro_engine.c:394
+#, c-format
+msgid "* %s has left %s (%s)"
+msgstr ""
+
+#: src/engine/elaro_engine.c:396
+#, c-format
+msgid "* %s has left %s"
+msgstr ""
+
+#: src/engine/elaro_engine.c:758
+msgid "Usage: /me action (in a channel or private conversation)"
+msgstr ""
+
+#: src/fe-efl/elaro_config.c:186
+msgid "Could not read the saved connection settings."
+msgstr ""
+
+#: src/fe-efl/elaro_config.c:294
+msgid ""
+"Could not save connection settings in the Elaro configuration directory."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui.c:173
+msgid "Elaro — IRC"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui.c:215
+msgid "Settings"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui.c:221
+msgid "About Elaro"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui.c:251 src/fe-efl/ui/elaro_ui_buffers.c:166
+msgid "Topic — Enter to set"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui.c:258
+msgid ""
+"Edit and press Enter to set the topic; empty clears it. Channel permissions "
+"apply."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui.c:277
+msgid "Message or /join #channel — Enter to send"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_about.c:31
+#, c-format
+msgid ""
+"Could not load %s.\n"
+"\n"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_about.c:64
+msgid "About Elaro"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_about.c:130
+msgid ""
+"AUTHORS\n"
+"\n"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_about.c:132
+msgid ""
+"COPYRIGHT AND LICENSE\n"
+"\n"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_about.c:148 src/fe-efl/ui/elaro_ui_connection.c:596
+#: src/fe-efl/ui/elaro_ui_dcc.c:256 src/fe-efl/ui/elaro_ui_image.c:131
+#: src/fe-efl/ui/elaro_ui_links.c:45 src/fe-efl/ui/elaro_ui_music.c:464
+#: src/fe-efl/ui/elaro_ui_bans.c:153 src/fe-efl/ui/elaro_ui_list.c:213
+msgid "Close"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:57
+msgid "List channels"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:71 src/fe-efl/ui/elaro_ui_buffers.c:118
+#: src/fe-efl/ui/elaro_ui_buffers.c:243
+msgid "Status"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:117
+msgid "Unread messages"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:119 src/fe-efl/ui/elaro_ui_connection.c:468
+msgid "Server"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:120
+msgid "Conversation"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:149
+msgid "Leave channel / close private chat"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:150
+msgid "Disconnect server and close its conversations"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:238
+#, c-format
+msgid "%s — %s (%u user)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:239
+#, c-format
+msgid "%s — %s (%u users)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_buffers.c:250
+msgid "View channel bans"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:36
+msgid "Save options"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:36
+#: src/fe-efl/ui/elaro_ui_connection.c:592
+msgid "Save"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:62
+msgid "Settings saved."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:104
+msgid "Enter a host, nickname and port (1–65535)."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:113
+msgid "Enter an IRC username without spaces, @ or colon."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:123
+msgid ""
+"Enter a valid optional email and a name without angle brackets or line "
+"breaks."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:133
+msgid "SASL requires an account name and password."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:181
+msgid "Connection saved."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:306
+msgid "Saved connection deleted."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:323
+msgid "Edit the fields below to save a new connection."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:376 src/fe-efl/ui/elaro_ui_util.c:40
+msgid "Password"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:403
+msgid "Connections and options"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:410
+msgid "Saved connections"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:442
+msgid "Connect"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:444
+msgid "Delete"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:449
+msgid "New"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:458
+msgid "Connection details"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:471
+msgid "Port"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:474
+msgid "Nickname"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:477
+msgid "IRC username"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:480
+msgid "Real name (optional)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:482
+msgid "Public email for Gravatar (optional)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:485
+msgid ""
+"Published in your IRC real name as Name &lt;email&gt;. Leave blank to keep "
+"your email private. Changes apply when reconnecting."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:488
+msgid "Server password (optional)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:490
+msgid "Channels (optional, comma separated)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:494
+msgid "Automatically reconnect and rejoin channels"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:496
+msgid ""
+"Retry after 5 seconds, up to 5 times. Each attempt times out after 30 "
+"seconds."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:504
+msgid "TLS (verify certificate)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:512
+msgid "SASL PLAIN authentication"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:520
+msgid "SASL account"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:523
+msgid "SASL password"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:559
+msgid "Connection"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_connection.c:560
+msgid "Options"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_font.c:106
+msgid "Choose a chat font"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_font.c:115
+msgid "Text size"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_font.c:126
+msgid "Alice: The quick brown fox jumps over the lazy dog. 0123456789"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:66
+msgid "Options saved."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:86
+msgid "Chat font"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:88
+msgid "Links"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:90 src/fe-efl/ui/elaro_ui_links.c:122
+msgid "Always allow external links"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:92
+msgid "Open web links in the default browser without asking first."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:99
+msgid "Notifications"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:101
+msgid "Notify about private messages"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:103
+msgid ""
+"Show desktop notifications only for private conversations that are not "
+"selected. Requires notify-send."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:110
+msgid "Appearance"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:112
+msgid "Enable window transparency"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_options.c:122
+msgid "Window opacity"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:114
+msgid "Send file — Elaro"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:114
+msgid "Incoming file — Elaro"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:129
+#, c-format
+msgid "Send a file to %s on %s"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:130
+#, c-format
+msgid "%s on %s offers %s (%<PRIu64> bytes)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:153
+msgid "File to send"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:153
+msgid "Save as"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:159
+msgid "Choose file…"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:159
+msgid "Choose destination…"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:171
+msgid "Choose a file, then Send to offer it to the recipient."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:172
+msgid "Accept this file? Existing files will not be overwritten."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:186
+msgid "Send"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:186
+msgid "Accept"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:192 src/fe-efl/ui/elaro_ui_dcc.c:249
+#: src/fe-efl/ui/elaro_ui_links.c:143
+msgid "Cancel"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:192
+msgid "Reject"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_dcc.c:222
+#, c-format
+msgid "%s — %<PRIu64> / %<PRIu64> bytes"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_image.c:48
+msgid "Failed"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_image.c:49
+msgid "Could not load this image."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_image.c:74
+msgid "Image preview"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_links.c:42
+msgid "Could not open link"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_links.c:43
+msgid "Could not launch the default browser."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_links.c:109
+msgid "Open remote link?"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_links.c:138
+msgid "Open"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_music.c:77
+msgid "Audio unavailable. Use Retry to try again."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_music.c:81
+msgid "Retry"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_music.c:181 src/fe-efl/ui/elaro_ui_music.c:430
+msgid "Pause"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_music.c:181
+msgid "Play"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_music.c:387
+msgid "Music player"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_music.c:435
+msgid "Stop"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_music.c:441
+msgid "Volume"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_notify.c:19
+#, c-format
+msgid "Private message from %s (%s)"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:28
+msgid "Private conversation"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:29
+msgid "Send file…"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:32
+msgid "Op"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:33
+msgid "Deop"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:34 src/fe-efl/ui/elaro_ui_users.c:92
+msgid "Voice"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:35
+msgid "Devoice"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:38
+msgid "Kick"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:39
+msgid "Ban"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:40
+msgid "Kick and ban"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:43
+msgid "WHOIS"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:44
+msgid "WHOWAS"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:45
+msgid "WHO"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:46
+msgid "USERHOST"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:49
+msgid "CTCP VERSION"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:50
+msgid "CTCP TIME"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:51
+msgid "CTCP PING"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:52
+msgid "CTCP CLIENTINFO"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:53
+msgid "CTCP FINGER"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:92
+msgid "Channel operator"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:92
+msgid "User"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:254
+msgid "Looking up public profile…"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:255
+msgid "No public email shared"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_users.c:255
+msgid "Gravatar"
+msgstr ""
+
+#: src/engine/elaro_bans.c:94
+msgid "Could not retrieve the ban list."
+msgstr ""
+
+#: src/engine/elaro_bans.c:121 src/engine/elaro_list.c:174
+#: src/engine/elaro_list.c:178 src/engine/elaro_list.c:202
+msgid "The server disconnected."
+msgstr ""
+
+#: src/engine/elaro_bans.c:138 src/engine/elaro_bans.c:143
+msgid "The channel is unavailable or the ban list request timed out."
+msgstr ""
+
+#: src/engine/elaro_bans.c:160
+msgid "Join the channel before viewing its bans."
+msgstr ""
+
+#: src/engine/elaro_bans.c:163
+msgid "A ban list request is already in progress. Try Refresh shortly."
+msgstr ""
+
+#: src/engine/elaro_bans.c:167
+msgid "Select a valid ban mask."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_bans.c:41
+msgid "Loading bans…"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_bans.c:110
+#, c-format
+msgid "Bans — %s — %s"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_bans.c:143 src/fe-efl/ui/elaro_ui_list.c:203
+msgid "Refresh"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_bans.c:148
+msgid "Unban selected mask"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_bans.c:173
+msgid "This channel is closed."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_bans.c:197
+msgid "Select a mask to remove its ban."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_bans.c:197
+msgid "No bans in this channel."
+msgstr ""
+
+#: src/engine/elaro_list.c:153
+msgid "Could not retrieve the channel list."
+msgstr ""
+
+#: src/engine/elaro_list.c:208 src/engine/elaro_list.c:212
+msgid "The channel list request timed out."
+msgstr ""
+
+#: src/engine/elaro_list.c:240
+msgid "The previous channel list request has not ended. Try Refresh later."
+msgstr ""
+
+#: src/engine/elaro_list.c:247
+msgid "Connect to a server first."
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_list.c:26
+#, c-format
+msgid "%s — %u user"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_list.c:26
+#, c-format
+msgid "%s — %u users"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_list.c:55
+#, c-format
+msgid "Adding channels… %u"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_list.c:55
+#, c-format
+msgid "Channels: %u"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_list.c:165
+#, c-format
+msgid "Channels — %s"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_list.c:208
+msgid "Join selected channel"
+msgstr ""
+
+#: src/fe-efl/ui/elaro_ui_list.c:235
+msgid "This server is closed."
+msgstr ""

@@ -1,0 +1,6 @@
+#include <src/common.h>
+#include <src/lib-config/iconfig.h>
+
+/* private */
+int config_error(CONFIG_REC *rec, const char *msg);
+

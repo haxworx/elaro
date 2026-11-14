@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Elaro
+GenericName=IRC Client
+Comment=Chat on IRC networks
+Exec=elaro
+Icon=elaro
+Terminal=false
+Categories=Network;IRCClient;
+StartupNotify=true
+StartupWMClass=elaro

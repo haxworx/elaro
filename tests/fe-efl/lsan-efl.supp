@@ -1,0 +1,5 @@
+# Optional, for the installed EFL 1.29.99 build only. Run without this first.
+# Evas leaks the clipped smart-object private allocation after widget deletion.
+leak:_evas_object_smart_clipped_init
+# The buffer rendering engine leaves its module allocation at shutdown.
+leak:evas_module_find_type
