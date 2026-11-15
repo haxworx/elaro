@@ -37,6 +37,7 @@ void elaro_ui_popup_show(Evas_Object *popup);
 void elaro_ui_popup_close(Evas_Object *popup);
 Evas_Object *elaro_ui_tabs_add(Evas_Object *parent);
 Evas_Object *elaro_ui_window_content_add(Evas_Object *win);
+void elaro_ui_window_control_style_set(Evas_Object *button, Eina_Bool close);
 void elaro_ui_view_reveal(Evas_Object *view);
 
 void elaro_ui_wrap_width_set(Evas_Object *obj, int width);

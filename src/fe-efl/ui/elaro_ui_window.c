@@ -6,6 +6,20 @@ typedef struct {
 } Window_Frame;
 
 static const char *window_icons[] = { "minimize", "maximize", "close" };
+
+void
+elaro_ui_window_control_style_set(Evas_Object *button, Eina_Bool close)
+{
+   elm_object_style_set(button, close ? "elaro/window-close" : "elaro/window-control");
+   elaro_ui_size_min_set(button, 32, 32);
+   elaro_ui_size_max_set(button, 32, 32);
+   Evas_Object *icon = elm_object_part_content_get(button, "icon");
+   if (icon)
+     {
+        elaro_ui_size_min_set(icon, 20, 20);
+        elaro_ui_size_max_set(icon, 20, 20);
+     }
+}
 static const Elm_Win_Move_Resize_Mode resize_modes[] = {
    ELM_WIN_MOVE_RESIZE_TOP, ELM_WIN_MOVE_RESIZE_BOTTOM,
    ELM_WIN_MOVE_RESIZE_LEFT, ELM_WIN_MOVE_RESIZE_RIGHT,
@@ -158,15 +172,14 @@ elaro_ui_window_content_add(Evas_Object *win)
    for (unsigned int i = 0; i < EINA_C_ARRAY_LENGTH(frame->icons); i++)
      {
         Evas_Object *button = elm_button_add(header);
+        elaro_ui_window_control_style_set(button, i == 2);
         frame->icons[i] = elm_icon_add(button);
         char group[64];
         snprintf(group, sizeof(group), "elaro/icons/%s", window_icons[i]);
         elm_image_file_set(frame->icons[i], path, group);
-        elaro_ui_size_min_set(frame->icons[i], 16, 16);
-        elaro_ui_size_max_set(frame->icons[i], 16, 16);
+        elaro_ui_size_min_set(frame->icons[i], 20, 20);
+        elaro_ui_size_max_set(frame->icons[i], 20, 20);
         elm_object_part_content_set(button, "icon", frame->icons[i]);
-        elaro_ui_size_min_set(button, 32, 32);
-        elaro_ui_size_max_set(button, 32, 32);
         elm_object_tooltip_text_set(button, tooltips[i]);
         elm_object_access_info_set(button, tooltips[i]);
         evas_object_smart_callback_add(button, "clicked", callbacks[i], win);

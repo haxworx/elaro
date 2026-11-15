@@ -272,7 +272,7 @@ elaro_ui_popup_close_button_add(Elaro_Ui *ui, Evas_Object *popup,
 {
    Evas_Object *button = elm_button_add(popup);
    Evas_Object *icon = elm_icon_add(button);
-   elm_object_style_set(button, "blank");
+   elaro_ui_window_control_style_set(button, EINA_TRUE);
    elaro_ui_icon_set(ui, icon, "close");
    elaro_ui_size_min_set(icon, 20, 20);
    elaro_ui_size_max_set(icon, 20, 20);

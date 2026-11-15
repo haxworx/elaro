@@ -371,13 +371,27 @@ static void _subwindow_check(Elaro_Ui *ui, const char *artifacts, int index)
           {
              Evas_Object *button = evas_object_data_get(win, assets[i]);
              Evas_Object *icon = elm_object_part_content_get(button, "icon");
+             Evas_Object *edje = elm_layout_edje_get(button);
+             Evas_Object *surface = (Evas_Object *)edje_object_part_object_get(edje, "surface");
+             Evas *canvas = evas_object_evas_get(button);
+             int x, y, w, h, r, g, b, a;
+             evas_event_feed_mouse_in(canvas, 0, NULL);
+             evas_event_feed_mouse_move(canvas, 0, 0, 0, NULL);
+             _settle();
+             evas_object_color_get(surface, &r, &g, &b, &a);
+             assert(a == 0);
+             evas_object_geometry_get(button, &x, &y, &w, &h);
+             evas_event_feed_mouse_move(canvas, x + w / 2, y + h / 2, 1, NULL);
+             _settle();
+             assert(!strcmp(edje_object_part_state_get(edje, "surface", NULL), "over"));
+             evas_object_color_get(surface, &r, &g, &b, &a);
+             assert(a > 0);
              char expected[64];
              snprintf(expected, sizeof(expected), "elaro/icons/%s", assets[i]);
              elm_image_file_get(icon, &file, &group);
              assert(!strcmp(file, ui->theme_path) && !strcmp(group, expected));
-             int w, h;
              evas_object_geometry_get(icon, NULL, NULL, &w, &h);
-             assert(w == ELM_SCALE_SIZE(16) && h == ELM_SCALE_SIZE(16));
+             assert(w == ELM_SCALE_SIZE(20) && h == ELM_SCALE_SIZE(20));
           }
      }
    Evas_Object *drag = evas_object_data_get(win, "elaro-window-drag");

@@ -256,6 +256,7 @@ elaro_ui_run(int argc, char **argv)
 
    connection
        = elaro_ui_icon_button_add(ui.win, "menu", _("Application menu"), _menu_show, &ui);
+   elaro_ui_window_control_style_set(connection, EINA_FALSE);
    evas_object_size_hint_align_set(connection, EVAS_HINT_FILL, EVAS_HINT_FILL);
    elm_box_pack_end(bar, connection);
 
@@ -281,10 +282,13 @@ elaro_ui_run(int argc, char **argv)
    evas_object_show(icon);
 
    about = elaro_ui_icon_button_add(ui.win, "minimize", _("Minimize"), _window_minimize, &ui);
+   elaro_ui_window_control_style_set(about, EINA_FALSE);
    elm_box_pack_end(bar, about);
    about = elaro_ui_icon_button_add(ui.win, "maximize", _("Maximize or restore"), _window_maximize, &ui);
+   elaro_ui_window_control_style_set(about, EINA_FALSE);
    elm_box_pack_end(bar, about);
    about = elaro_ui_icon_button_add(ui.win, "close", _("Close Elaro"), _close_window_cb, &ui);
+   elaro_ui_window_control_style_set(about, EINA_TRUE);
    elm_box_pack_end(bar, about);
 
    shadow = _shadow_add(ui.win, "elaro/header/shadow");
