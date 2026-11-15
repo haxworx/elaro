@@ -74,14 +74,22 @@ _send_input_cb(void *data, Evas_Object *obj, void *info)
    if (text && *text && ui->current)
      {
         c = calloc(1, sizeof(Elaro_Engine_Command));
+        if (!c) goto allocation_failed;
         c->type = ELARO_ENGINE_INPUT;
         c->server = strdup(ui->current->server);
         c->target = strdup(ui->current->target);
         c->text = strdup(text);
+        if (!c->server || !c->target || !c->text) goto allocation_failed;
+
         elaro_ui_input_record(ui, text);
         elaro_engine_submit(ui->engine, c);
         elm_entry_entry_set(ui->input, "");
      }
+   free(text);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
    free(text);
 }
 
@@ -106,6 +114,8 @@ _close_window_cb(void *data, Evas_Object *obj, void *info)
 {
    elm_exit();
 }
+
+#include "elaro_ui_theme.h"
 
 static Eina_Bool
 _smoke_done_cb(void *data)
@@ -132,7 +142,7 @@ _shadow_add(Evas_Object *parent, const char *group)
    free(path);
    elm_object_focus_allow_set(shadow, EINA_FALSE);
    evas_object_pass_events_set(shadow, EINA_TRUE);
-   evas_object_size_hint_min_set(shadow, 0, ELM_SCALE_SIZE(6));
+   elaro_ui_size_min_set(shadow, 0, 6);
    evas_object_size_hint_weight_set(shadow, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(shadow, EVAS_HINT_FILL, 0);
    evas_object_show(shadow);
@@ -174,6 +184,14 @@ elaro_ui_run(int argc, char **argv)
      {
         ui.config_error = strdup(eina_error_msg_get(config_error));
      }
+   if (!ui.config || !ui.binary)
+     {
+        elaro_config_free(ui.config);
+        free(ui.config_error);
+        free(ui.binary);
+        elm_shutdown();
+        return 1;
+     }
    ui.engine = elaro_engine_start(argv[0]);
    if (!ui.engine)
      {
@@ -186,7 +204,9 @@ elaro_ui_run(int argc, char **argv)
      }
    elaro_ui_dcc_init(&ui);
 
+   _theme_apply(&ui);
    ui.win = elm_win_add(NULL, "elaro", ELM_WIN_BASIC);
+   elm_win_borderless_set(ui.win, EINA_TRUE);
    elm_win_title_set(ui.win, _("Elaro — IRC"));
 
    ui.background = elm_bg_add(ui.win);
@@ -215,29 +235,56 @@ elaro_ui_run(int argc, char **argv)
    elaro_ui_opacity_apply(&ui);
    elm_box_padding_set(box, 0, 0);
    elaro_ui_expand(box);
-   elm_win_resize_object_add(ui.win, box);
+   ui.frame = elm_layout_add(ui.win);
+   elm_layout_file_set(ui.frame, ui.theme_path, "elaro/frame");
+   elaro_ui_expand(ui.frame);
+   elm_win_resize_object_add(ui.win, ui.frame);
+   elm_object_part_content_set(ui.frame, "elaro.content", box);
+   elaro_ui_opacity_apply(&ui);
+   _frame_bind(&ui);
 
    bar = elm_box_add(ui.win);
    elm_box_horizontal_set(bar, EINA_TRUE);
    elm_box_align_set(bar, 0, 0.5);
-   elm_box_padding_set(bar, ELM_SCALE_SIZE(6), 0);
-   evas_object_size_hint_padding_set(bar, ELM_SCALE_SIZE(6), ELM_SCALE_SIZE(6), ELM_SCALE_SIZE(4),
-                                     ELM_SCALE_SIZE(4));
+   elaro_ui_box_padding_set(bar, 6, 0);
+   elaro_ui_padding_set(bar, 6, 6, 4,
+                                     4);
    evas_object_size_hint_weight_set(bar, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(bar, EVAS_HINT_FILL, 0);
    elm_box_pack_end(box, bar);
    evas_object_show(bar);
 
    connection
-       = elaro_ui_icon_button_add(ui.win, "menu", _("Settings"), elaro_ui_connection_show, &ui);
+       = elaro_ui_icon_button_add(ui.win, "menu", _("Application menu"), _menu_show, &ui);
    evas_object_size_hint_align_set(connection, EVAS_HINT_FILL, EVAS_HINT_FILL);
    elm_box_pack_end(bar, connection);
 
+   /* A dedicated title region leaves the channel heading clickable. */
+   icon = elm_label_add(bar);
+   elm_object_style_set(icon, "elaro/title");
+   elm_object_text_set(icon, "<b>ELARO</b>");
+   evas_object_size_hint_weight_set(icon, 0, 0);
+   evas_object_size_hint_align_set(icon, 0, 0.5);
+   elaro_ui_size_min_set(icon, 0, 38);
+   elm_box_pack_end(bar, icon);
+   evas_object_show(icon);
    elm_box_pack_end(bar, elaro_ui_bans_heading_add(&ui, bar));
 
-   about = elaro_ui_icon_button_add(ui.win, "application", _("About Elaro"), elaro_ui_about_show,
-                                    &ui);
-   evas_object_size_hint_align_set(about, EVAS_HINT_FILL, EVAS_HINT_FILL);
+   /* Give the space after the heading to window dragging, not the button. */
+   icon = evas_object_rectangle_add(evas_object_evas_get(ui.win));
+   evas_object_color_set(icon, 0, 0, 0, 0);
+   evas_object_size_hint_weight_set(icon, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+   evas_object_size_hint_align_set(icon, EVAS_HINT_FILL, EVAS_HINT_FILL);
+   elaro_ui_size_min_set(icon, 40, 38);
+   evas_object_event_callback_add(icon, EVAS_CALLBACK_MOUSE_DOWN, _frame_move, &ui);
+   elm_box_pack_end(bar, icon);
+   evas_object_show(icon);
+
+   about = elaro_ui_icon_button_add(ui.win, "minimize", _("Minimize"), _window_minimize, &ui);
+   elm_box_pack_end(bar, about);
+   about = elaro_ui_icon_button_add(ui.win, "maximize", _("Maximize or restore"), _window_maximize, &ui);
+   elm_box_pack_end(bar, about);
+   about = elaro_ui_icon_button_add(ui.win, "close", _("Close Elaro"), _close_window_cb, &ui);
    elm_box_pack_end(bar, about);
 
    shadow = _shadow_add(ui.win, "elaro/header/shadow");
@@ -262,7 +309,7 @@ elaro_ui_run(int argc, char **argv)
    elaro_ui_expand(conversation);
    elm_object_part_content_set(right, "left", conversation);
 
-   ui.topic = elm_entry_add(conversation);
+   ui.topic = elaro_ui_entry_add(conversation, EINA_FALSE);
    elm_entry_single_line_set(ui.topic, EINA_TRUE);
    elm_entry_scrollable_set(ui.topic, EINA_TRUE);
    elm_object_part_text_set(ui.topic, "guide", _("Topic — Enter to set"));
@@ -287,18 +334,16 @@ elaro_ui_run(int argc, char **argv)
    shadow = _shadow_add(ui.win, "elaro/input/shadow");
    elm_box_pack_end(box, shadow);
 
-   ui.input = elm_entry_add(ui.win);
+   ui.input = elaro_ui_entry_add(ui.win, EINA_FALSE);
    elm_entry_single_line_set(ui.input, EINA_TRUE);
    elm_entry_key_down_intercept_set(ui.input, elaro_ui_input_key_down, &ui);
    elm_entry_scrollable_set(ui.input, EINA_TRUE);
    elm_object_part_text_set(ui.input, "guide", _("Message or /join #channel — Enter to send"));
    evas_object_size_hint_weight_set(ui.input, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(ui.input, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   evas_object_size_hint_min_set(ui.input, 0, ELM_SCALE_SIZE(40));
    elm_box_pack_end(box, ui.input);
    evas_object_show(ui.input);
    evas_object_smart_callback_add(ui.input, "activated", _send_input_cb, &ui);
-   elaro_ui_font_apply(&ui);
    elaro_ui_buffer_get(&ui, "Status", "");
    events = ecore_main_fd_handler_add(elaro_engine_event_fd(ui.engine),
                                       ECORE_FD_READ, _receive_events_cb, &ui,
@@ -339,6 +384,8 @@ elaro_ui_run(int argc, char **argv)
    evas_object_del(ui.win);
    elaro_config_free(ui.config);
    free(ui.binary);
+   if (ui.theme_path) elm_theme_overlay_del(NULL, ui.theme_path);
+   free(ui.theme_path);
    free(ui.config_error);
    elm_shutdown();
 

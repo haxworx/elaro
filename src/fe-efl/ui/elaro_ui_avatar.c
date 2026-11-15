@@ -331,11 +331,14 @@ _work_start(Avatar *avatar, Eina_Bool prepare, int status)
    Avatar_Work *work;
 
    work = calloc(1, sizeof(Avatar_Work));
+   if (!work) return;
    work->avatar = avatar;
    work->path = strdup(avatar->path);
    work->missing = strdup(avatar->missing);
    work->temp = avatar->temp ? strdup(avatar->temp) : NULL;
    work->dir = _cache_dir();
+   if (!work->path || !work->missing || (avatar->temp && !work->temp) || !work->dir)
+      goto allocation_failed;
    work->prepare = prepare;
    work->status = status;
    avatar->work = work;
@@ -344,6 +347,10 @@ _work_start(Avatar *avatar, Eina_Bool prepare, int status)
         avatar->work = NULL;
         _work_free(work);
      }
+   return;
+
+allocation_failed:
+   _work_free(work);
 }
 
 static void
@@ -363,11 +370,12 @@ elaro_ui_avatar_load(Elaro_Ui *ui, const char *email, Evas_Object *image)
 {
    Avatar *avatar, *candidate;
    Eina_Iterator *iter;
-   char *hash, *dir;
+   char *hash, *dir = NULL;
 
    hash = elaro_avatar_hash_get(email);
    if (!hash) return;
    if (!ui->avatars) ui->avatars = eina_hash_string_superfast_new(_avatar_free);
+   if (!ui->avatars) goto allocation_failed;
    avatar = eina_hash_find(ui->avatars, hash);
    if (!avatar)
      {
@@ -375,6 +383,7 @@ elaro_ui_avatar_load(Elaro_Ui *ui, const char *email, Evas_Object *image)
           {
              candidate = NULL;
              iter = eina_hash_iterator_data_new(ui->avatars);
+             if (!iter) goto allocation_failed;
              EINA_ITERATOR_FOREACH (iter, avatar)
                 if (!avatar->job && !avatar->work && !avatar->images)
                   {
@@ -390,12 +399,16 @@ elaro_ui_avatar_load(Elaro_Ui *ui, const char *email, Evas_Object *image)
              eina_hash_del_by_data(ui->avatars, candidate);
           }
         dir = _cache_dir();
+        if (!dir) goto allocation_failed;
         avatar = calloc(1, sizeof(Avatar));
+        if (!avatar) goto allocation_failed;
         avatar->hash = strdup(hash);
         avatar->path = elaro_path_join(dir, hash, NULL);
-        avatar->missing = elaro_string_printf("%s.missing", avatar->path);
+        if (avatar->path) avatar->missing = elaro_string_printf("%s.missing", avatar->path);
+        if (!avatar->hash || !avatar->path || !avatar->missing) goto avatar_failed;
         free(dir);
-        eina_hash_add(ui->avatars, hash, avatar);
+        dir = NULL;
+        if (!eina_hash_add(ui->avatars, hash, avatar)) goto avatar_failed;
      }
    /* An image can be updated by WHOIS more than once. Detach its old lookup. */
    candidate = evas_object_data_get(image, "avatar-record");
@@ -421,11 +434,19 @@ elaro_ui_avatar_load(Elaro_Ui *ui, const char *email, Evas_Object *image)
         _work_start(avatar, EINA_TRUE, 0);
      }
    free(hash);
+   return;
+
+avatar_failed:
+   _avatar_free(avatar);
+allocation_failed:
+   free(dir);
+   free(hash);
 }
 
 void
 elaro_ui_avatars_shutdown(Elaro_Ui *ui)
 {
-   eina_hash_free(ui->avatars);
+   if (ui->avatars) eina_hash_free(ui->avatars);
+   ui->avatars = NULL;
    ui->avatars = NULL;
 }

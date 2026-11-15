@@ -98,6 +98,10 @@ typedef struct _Elaro_Engine Elaro_Engine;
 /* Returns NULL if wakeup descriptors cannot be created. */
 Elaro_Engine *
 elaro_engine_start(const char *binary);
+/* Free an unsubmitted command, including any fields already allocated. */
+void
+elaro_engine_command_free(Elaro_Engine_Command *command);
+
 /* Takes ownership, including every string. */
 void
 elaro_engine_submit(Elaro_Engine *engine, Elaro_Engine_Command *command);

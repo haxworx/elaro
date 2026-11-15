@@ -21,7 +21,7 @@ advantage you *had* over the general public. Now with AI anyone can implement
 anything and we can't go around pretending we're more important than other
 users because "we're developers." LLMs are here to stay.
 
-![Elaro screenshot](data/images/ss.jpg)
+![Elaro screenshot](data/images/ss.png)
 
 ## Features
 
@@ -38,13 +38,15 @@ users because "we're developers." LLMs are here to stay.
 - Edit channel topics and manage users from the user list.
 - Complete nicknames with Tab and recall sent messages with Up and Down.
 - Use familiar IRC commands alongside the graphical controls.
-- Choose a chat font and text size, with a preview before saving.
+- Choose Midnight, Porcelain, Verdigris, or Ember, with matching widgets and icons.
+- Use client-side window borders with drag, resize, minimize, and maximize controls.
 - Adjust window transparency to suit your desktop.
 - Keep your window position, size and panel widths between starts.
 
 ## Getting started
 
-Open **Settings** to add and save a connection, then select it and choose
+Open the top-left application menu and choose **Settings** to add
+and save a connection, then select it and choose
 **Connect**. You can save several connections for the networks you use.
 TLS is enabled by default, and SASL authentication is available when needed.
 Each connection has an **Automatically reconnect and rejoin channels** checkbox.
@@ -54,6 +56,25 @@ Closing the server or using `/quit` cancels automatic reconnects.
 Use `/quit Gone fishing` to send a custom quit message when disconnecting from
 the current server; `/quit` on its own sends `Leaving`.
 Closing a server disconnects it and closes all of its channels and private chats.
+
+The application menu shows all four themes under **Appearance**: Midnight
+(ink blue), Porcelain (warm ivory), Verdigris (deep green), and Ember (charcoal
+and copper). Click a theme to apply and save it immediately; **Selected** marks
+the current choice. The menu also contains **About Elaro** and **Quit**.
+About has artwork for the current theme and separate **Overview**, **Credits**,
+and **License** pages.
+
+Drag the Elaro title to move the window, double-click it to maximize or restore,
+and drag any edge or corner to resize. The clear header areas are draggable;
+the menu, channel heading, and window buttons retain their own actions.
+Settings and About share the same tab strip. Popups fade and slide into view,
+fade out on dismissal, and fade between tab pages. Close popups using the icon
+in the top-right corner. Panel dividers have matching themed grips you can drag
+to resize the sidebars. Chat colors and inline metadata follow the selected
+theme through history refreshes and toolkit appearance changes.
+Each theme has its own source in `data/themes/<name>/<name>.edc`, compiled into
+an independently installed EDJ. The shared `widgets.edc` defines widget contracts;
+each theme supplies its palette and SVG icons.
 
 The left sidebar groups channels and private conversations beneath each server.
 Use the arrow beside a server to expand or collapse its conversations. Collapsing
@@ -85,10 +106,13 @@ Mode changes require the appropriate privileges on the server.
 
 You can share files, preview image links and listen to linked audio without
 leaving the conversation. The **Options** tab in Settings groups preferences
-for chat fonts, links, notifications and window appearance.
+for links, notifications and window appearance.
 Enable **Notify about private messages** there
 to receive desktop notifications for private conversations that are not selected.
 Notifications use the Elaro icon and require `notify-send`.
+Turn on **Enable sounds** to play the ICQ sound for private conversations that
+are not selected. Sounds are off by default and work independently of desktop
+notifications.
 
 Away users show a sleeping-person indicator at the right of their user-list
 row, alongside their usual operator, voice or user icon on the left. Private

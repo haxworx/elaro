@@ -7,7 +7,6 @@ ui_sources = files(
   'elaro_ui_buffers.c',
   'elaro_ui_history.c',
   'elaro_ui_connection.c',
-  'elaro_ui_font.c',
   'elaro_ui_options.c',
   'elaro_ui_dcc.c',
   'elaro_ui_image.c',

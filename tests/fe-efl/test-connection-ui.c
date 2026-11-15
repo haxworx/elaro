@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "src/fe-efl/ui/elaro_ui_connection.c"
-#include "src/fe-efl/ui/elaro_ui_font.c"
 #include "src/fe-efl/ui/elaro_ui_options.c"
 
 static Elaro_Engine_Command *submitted;
@@ -41,16 +40,6 @@ int main(int argc, char **argv)
     Elaro_Config *selected;
     char *path, *backup;
 
-    {
-        const char *raw[] = { "TC:style=Regular", "Family,Alias:style=Book,Regular:lang=en",
-                              "Plain", "Family\\-Name:weight=80:style=Bold" };
-        const char *expected[] = { "TC — Regular", "Family — Book", "Plain", "Family-Name — Bold" };
-        for (unsigned int i = 0; i < 4; i++) {
-            char *label = _font_label_get(raw[i]);
-            assert(!strcmp(label, expected[i]));
-            free(label);
-        }
-    }
     ecore_main_loop_glib_always_integrate_disable();
     assert(elm_init(argc, argv) > 0);
     ui.config = elaro_config_load(NULL);
@@ -60,6 +49,21 @@ int main(int argc, char **argv)
     ui.config->buffer_panel_ratio = 0.27;
     ui.config->user_panel_ratio = 0.22;
     ui.win = elm_win_util_standard_add("connection-test", "Connection test");
+    /* Scale default logical dimensions once; saved pixel sizes stay exact. */
+    double original_scale = elm_config_scale_get();
+    elm_config_scale_set(1.5);
+    int screen_w = 0, screen_h = 0, width, height;
+    elm_win_screen_size_get(ui.win, NULL, NULL, &screen_w, &screen_h);
+    elaro_ui_layout_restore(&ui);
+    evas_object_geometry_get(ui.win, NULL, NULL, &width, &height);
+    assert(width == (screen_w > 0 ? MIN(1920, screen_w * 9 / 10) : 1920));
+    assert(height == (screen_h > 0 ? MIN(1350, screen_h * 9 / 10) : 1350));
+    assert(!ui.config->window_size_default);
+    elaro_ui_layout_restore(&ui);
+    int restored_w, restored_h;
+    evas_object_geometry_get(ui.win, NULL, NULL, &restored_w, &restored_h);
+    assert(restored_w == width && restored_h == height);
+    elm_config_scale_set(original_scale);
     ui.history = elm_entry_add(ui.win);
     ui.input = elm_entry_add(ui.win);
     evas_object_resize(ui.win, 1100, 720);
@@ -70,40 +74,13 @@ int main(int argc, char **argv)
     assert(elm_object_disabled_get(ui.connection.connect));
     assert(elm_object_disabled_get(ui.connection.remove));
     {
-        Elm_Object_Item *font = elm_genlist_item_next_get(elm_genlist_first_item_get(ui.connection.font_list));
-        if (!font) font = elm_genlist_first_item_get(ui.connection.font_list);
-        char *name = strdup(elm_object_item_data_get(font));
-        elm_genlist_item_selected_set(font, EINA_TRUE);
-        char *combo_text = elm_entry_markup_to_utf8(elm_object_text_get(ui.connection.font_combo));
-        char *label = _font_label_get(name);
-        assert(!strcmp(combo_text, label));
-        free(label);
-        free(combo_text);
-        Elm_Object_Item *combo_font = elm_genlist_first_item_get(ui.connection.font_combo);
-        _font_combo_pressed(&ui, ui.connection.font_combo, combo_font);
-        assert(!strcmp(elm_object_item_data_get(elm_genlist_selected_item_get(ui.connection.font_list)),
-                       elm_object_item_data_get(combo_font)));
-        combo_font = elm_genlist_item_next_get(combo_font);
-        if (combo_font) _font_combo_pressed(&ui, ui.connection.font_combo, combo_font);
-        assert(elm_genlist_selected_item_get(ui.connection.font_list) == font);
-        Evas_Coord small, large;
-        elaro_ui_font_set(ui.connection.font_preview, "Sans", 8);
-        elm_entry_calc_force(ui.connection.font_preview);
-        evas_object_textblock_size_native_get(elm_entry_textblock_get(ui.connection.font_preview), NULL, &small);
-        elaro_ui_font_set(ui.connection.font_preview, "Sans", 36);
-        elm_entry_calc_force(ui.connection.font_preview);
-        evas_object_textblock_size_native_get(elm_entry_textblock_get(ui.connection.font_preview), NULL, &large);
-        assert(large > small);
-        elm_slider_value_set(ui.connection.font_size, 21);
-        _font_preview_update(&ui, NULL, NULL);
+        assert(!elm_check_state_get(ui.connection.enable_sounds));
+        elm_check_state_set(ui.connection.enable_sounds, EINA_TRUE);
         elaro_ui_options_save(&ui);
-        assert(!strcmp(ui.config->chat_font, name));
-        assert(ui.config->chat_font_size == 21);
+        assert(ui.config->enable_sounds);
         Elaro_Config *stored = elaro_config_load(NULL);
-        assert(!strcmp(stored->chat_font, name));
-        assert(stored->chat_font_size == 21);
+        assert(stored->enable_sounds);
         elaro_config_free(stored);
-        free(name);
     }
     edit(&ui, ui.connection.realname, "A Person");
     edit(&ui, ui.connection.email, "person@example.org");
@@ -113,10 +90,13 @@ int main(int argc, char **argv)
     check_profiles(&ui, 1);
     assert(ui.connection.selected);
     selected = ui.connection.selected;
-    assert(ui.config->chat_font_size == 21);
     assert(ui.config->window_x == -320 && ui.config->window_y == 120);
     assert(ui.config->window_position_set);
     assert(ui.config->buffer_panel_ratio == 0.27 && ui.config->user_panel_ratio == 0.22);
+    assert(ui.config->enable_sounds);
+    Elaro_Config *sound_config = elaro_config_load(NULL);
+    assert(sound_config->enable_sounds);
+    elaro_config_free(sound_config);
     assert(selected->auto_reconnect);
     assert(!strcmp(selected->nick, "SavedNick"));
     assert(!strcmp(selected->realname, "A Person"));

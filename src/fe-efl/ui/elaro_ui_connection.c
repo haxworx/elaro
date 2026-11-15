@@ -9,7 +9,18 @@ _popup_closed_cb(void *data, Evas_Object *obj, void *info)
    Elaro_Ui *ui;
 
    ui = data;
-   evas_object_del(ui->connection.popup);
+   Evas_Object *popup = ui->connection.popup;
+   if (popup) evas_object_smart_callback_del_full(popup, "block,clicked", _popup_closed_cb, ui);
+   elaro_ui_popup_close(popup);
+   ui->connection.popup = NULL;
+   ui->connection.selected = NULL;
+}
+
+static void
+_popup_deleted_cb(void *data, Evas *evas, Evas_Object *obj, void *info)
+{
+   Elaro_Ui *ui = data;
+   if (ui->connection.popup != obj) return;
    ui->connection.popup = NULL;
    ui->connection.selected = NULL;
 }
@@ -30,9 +41,15 @@ _view_changed_cb(void *data, Evas_Object *obj, void *info)
                                              : ui->connection.connection_view;
    next = options ? ui->connection.options_view : ui->connection.connection_view;
    elm_table_unpack(ui->connection.view_box, previous);
+   elm_object_tree_focus_allow_set(previous, EINA_FALSE);
    evas_object_hide(previous);
    elm_table_pack(ui->connection.view_box, next, 0, 0, 1, 1);
+   elm_object_tree_focus_allow_set(next, EINA_TRUE);
    evas_object_show(next);
+   elm_object_focus_set(options ? ui->connection.allow_links : ui->connection.host,
+                        EINA_TRUE);
+   elm_scroller_region_show(next, 0, 0, 1, 1);
+   elaro_ui_view_reveal(next);
    ui->connection.options_visible = options;
    elm_object_text_set(ui->connection.apply, options ? _("Save options") : _("Save"));
 }
@@ -66,10 +83,10 @@ _save_clicked_cb(void *data, Evas_Object *obj, void *info)
      }
 
    c = calloc(1, sizeof(Elaro_Config));
+   if (!c) goto allocation_failed;
    c->version = ELARO_CONFIG_VERSION;
-   c->chat_font = strdup(ui->config->chat_font);
-   c->chat_font_size = ui->config->chat_font_size;
    c->notify_private_messages = ui->config->notify_private_messages;
+   c->enable_sounds = ui->config->enable_sounds;
    c->always_allow_external_links = ui->config->always_allow_external_links;
    c->window_transparent = ui->config->window_transparent;
    c->window_opacity = ui->config->window_opacity;
@@ -92,7 +109,11 @@ _save_clicked_cb(void *data, Evas_Object *obj, void *info)
    c->auto_reconnect = elm_check_state_get(ui->connection.auto_reconnect);
    c->tls = elm_check_state_get(ui->connection.tls);
    c->sasl = elm_check_state_get(ui->connection.sasl);
+   if (!c->host || !c->nick || !c->username || !c->realname || !c->email
+       || !c->password || !c->channels || !c->sasl_username || !c->sasl_password)
+      goto allocation_failed;
    port = elaro_ui_field_text_get(ui->connection.port);
+   if (!port) goto allocation_failed;
    number = strtol(port, &end, 10);
    valid_port = *port && !*end && number >= 1 && number <= 65535;
    free(port);
@@ -147,17 +168,23 @@ _save_clicked_cb(void *data, Evas_Object *obj, void *info)
                 && saved->port == c->port && !strcasecmp(saved->nick, c->nick)))
           {
              profile = elaro_config_connection_copy(c);
+             if (!profile) goto allocation_failed;
              c->connections = eina_list_append(c->connections, profile);
              selected = profile;
              replaced = EINA_TRUE;
           }
         else
-           c->connections = eina_list_append(c->connections, elaro_config_connection_copy(saved));
+          {
+             profile = elaro_config_connection_copy(saved);
+             if (!profile) goto allocation_failed;
+             c->connections = eina_list_append(c->connections, profile);
+          }
      }
 
    if (!replaced)
      {
         selected = elaro_config_connection_copy(c);
+        if (!selected) goto allocation_failed;
         c->connections = eina_list_append(c->connections, selected);
      }
    error = 0;
@@ -180,6 +207,10 @@ _save_clicked_cb(void *data, Evas_Object *obj, void *info)
    _saved_list_fill(ui, selected);
    ui->connection.dirty = EINA_FALSE;
    elm_object_text_set(ui->connection.error, _("Connection saved."));
+   return;
+
+allocation_failed:
+   elaro_config_free(c);
 }
 
 static char *
@@ -251,6 +282,7 @@ _saved_connect_cb(void *data, Evas_Object *obj, void *info)
    if (!c) return;
 
    command = calloc(1, sizeof(Elaro_Engine_Command));
+   if (!command) goto allocation_failed;
    command->type = ELARO_ENGINE_CONNECT;
    command->host = strdup(c->host);
    command->nick = strdup(c->nick);
@@ -265,8 +297,17 @@ _saved_connect_cb(void *data, Evas_Object *obj, void *info)
    command->sasl = c->sasl;
    command->sasl_username = strdup(c->sasl_username);
    command->sasl_password = strdup(c->sasl_password);
+   if (!command->host || !command->nick || !command->username || !command->realname
+       || !command->email || !command->password || !command->channels || !command->sasl_username
+       || !command->sasl_password)
+      goto allocation_failed;
+
    elaro_engine_submit(ui->engine, command);
    _popup_closed_cb(ui, NULL, NULL);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(command);
 }
 
 static void
@@ -385,7 +426,7 @@ _connection_field_add(Evas_Object *box, const char *label, const char *value, Ei
    elm_box_pack_end(box, caption);
    evas_object_show(caption);
 
-   entry = elm_entry_add(box);
+   entry = elaro_ui_entry_add(box, secret);
    elm_entry_single_line_set(entry, EINA_TRUE);
    elm_entry_scrollable_set(entry, EINA_TRUE);
    elm_entry_password_set(entry, secret);
@@ -395,7 +436,6 @@ _connection_field_add(Evas_Object *box, const char *label, const char *value, Ei
    free(safe);
    evas_object_size_hint_weight_set(entry, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(entry, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   evas_object_size_hint_min_set(entry, ELM_SCALE_SIZE(320), ELM_SCALE_SIZE(30));
    elm_box_pack_end(box, entry);
    evas_object_show(entry);
 
@@ -439,7 +479,9 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    if (ui->connection.popup) return;
 
    ui->connection.popup = elm_popup_add(ui->win);
-   elm_object_part_text_set(ui->connection.popup, "title,text", _("Connections and options"));
+   elm_object_part_text_set(ui->connection.popup, "title,text", _("Settings"));
+   evas_object_event_callback_add(ui->connection.popup, EVAS_CALLBACK_DEL, _popup_deleted_cb, ui);
+   evas_object_smart_callback_add(ui->connection.popup, "block,clicked", _popup_closed_cb, ui);
    ui->connection.options_visible = EINA_FALSE;
 
    box = elm_box_add(ui->connection.popup);
@@ -457,7 +499,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    elm_genlist_homogeneous_set(ui->connection.saved, EINA_TRUE);
    evas_object_size_hint_weight_set(ui->connection.saved, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
    evas_object_size_hint_align_set(ui->connection.saved, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   evas_object_size_hint_min_set(ui->connection.saved, ELM_SCALE_SIZE(320), ELM_SCALE_SIZE(96));
+   elaro_ui_size_min_set(ui->connection.saved, 320, 96);
 
    list_slot = elm_table_add(saved_box);
    evas_object_size_hint_weight_set(list_slot, EVAS_HINT_EXPAND, 0);
@@ -466,7 +508,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    list_size = evas_object_rectangle_add(evas_object_evas_get(list_slot));
    evas_object_color_set(list_size, 0, 0, 0, 0);
    evas_object_pass_events_set(list_size, EINA_TRUE);
-   evas_object_size_hint_min_set(list_size, ELM_SCALE_SIZE(320), ELM_SCALE_SIZE(96));
+   elaro_ui_size_min_set(list_size, 320, 96);
    elm_table_pack(list_slot, list_size, 0, 0, 1, 1);
    evas_object_show(list_size);
    elm_table_pack(list_slot, ui->connection.saved, 0, 0, 1, 1);
@@ -479,7 +521,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    elm_box_homogeneous_set(buttons, EINA_TRUE);
    evas_object_size_hint_weight_set(buttons, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(buttons, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   elm_box_padding_set(buttons, ELM_SCALE_SIZE(6), 0);
+   elaro_ui_box_padding_set(buttons, 6, 0);
 
    ui->connection.connect = elaro_ui_button_add(buttons, _("Connect"), _saved_connect_cb, ui);
 
@@ -508,7 +550,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    evas_object_size_hint_weight_set(frame, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(frame, EVAS_HINT_FILL, EVAS_HINT_FILL);
    details = elm_box_add(frame);
-   elm_box_padding_set(details, 0, ELM_SCALE_SIZE(3));
+   elaro_ui_box_padding_set(details, 0, 3);
    elm_object_content_set(frame, details);
    elm_box_pack_end(box, frame);
    evas_object_show(details);
@@ -582,14 +624,16 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    /* Reserve a viewport so the fields remain usable on smaller windows. */
 
    evas_object_geometry_get(ui->win, NULL, NULL, NULL, &height);
+   /* Size helpers take logical units. Reserve room for the title, tabs,
+    * actions and surrounding window instead of scaling pixel space twice. */
+   height = MIN(560, MAX(120, (int)(height / elm_config_scale_get()) - 280));
 
    viewport = elm_table_add(ui->connection.popup);
 
    size = evas_object_rectangle_add(evas_object_evas_get(viewport));
    evas_object_color_set(size, 0, 0, 0, 0);
    evas_object_pass_events_set(size, EINA_TRUE);
-   evas_object_size_hint_min_set(size, ELM_SCALE_SIZE(360),
-                                 MIN(ELM_SCALE_SIZE(560), MAX(120, height - ELM_SCALE_SIZE(160))));
+   elaro_ui_size_min_set(size, 360, height);
    elm_table_pack(viewport, size, 0, 0, 1, 1);
    evas_object_show(size);
 
@@ -605,9 +649,11 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    ui->connection.connection_view = viewport;
 
    root = elm_box_add(ui->connection.popup);
-   elm_box_padding_set(root, 0, ELM_SCALE_SIZE(6));
+   elaro_ui_box_padding_set(root, 0, 14);
+   elaro_ui_padding_set(root, 12, 12,
+                                     12, 12);
 
-   tabs = elm_segment_control_add(root);
+   tabs = elaro_ui_tabs_add(root);
    elm_segment_control_item_add(tabs, NULL, _("Connection"));
    elm_segment_control_item_add(tabs, NULL, _("Options"));
    elm_segment_control_item_selected_set(elm_segment_control_item_get(tabs, 0), EINA_TRUE);
@@ -616,6 +662,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    elm_box_pack_end(root, tabs);
    evas_object_show(tabs);
    evas_object_smart_callback_add(tabs, "changed", _view_changed_cb, ui);
+   evas_object_data_set(ui->connection.popup, "pages", tabs);
 
    ui->connection.view_box = elm_table_add(root);
    /* Keep one size reservation outside the switched views: box widgets
@@ -624,8 +671,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    view_size = evas_object_rectangle_add(evas_object_evas_get(root));
    evas_object_color_set(view_size, 0, 0, 0, 0);
    evas_object_pass_events_set(view_size, EINA_TRUE);
-   evas_object_size_hint_min_set(view_size, ELM_SCALE_SIZE(360),
-                                 MIN(ELM_SCALE_SIZE(560), MAX(120, height - ELM_SCALE_SIZE(160))));
+   elaro_ui_size_min_set(view_size, 360, height);
    elm_table_pack(ui->connection.view_box, view_size, 0, 0, 1, 1);
    evas_object_show(view_size);
    evas_object_size_hint_align_set(ui->connection.view_box, EVAS_HINT_FILL, EVAS_HINT_FILL);
@@ -643,9 +689,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    ui->connection.apply
        = elaro_ui_button_add(ui->connection.popup, _("Save"), _save_clicked_cb, ui);
    elm_object_part_content_set(ui->connection.popup, "button1", ui->connection.apply);
-   elm_object_part_content_set(
-       ui->connection.popup, "button2",
-       elaro_ui_button_add(ui->connection.popup, _("Close"), _popup_closed_cb, ui));
+   elaro_ui_popup_close_button_add(ui, ui->connection.popup, _popup_closed_cb, ui);
    ui->connection.dirty = EINA_FALSE;
    _saved_list_fill(ui, _initial_profile(ui));
 #define WATCH(field)                                                                               \
@@ -665,5 +709,5 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
                                   ui);
    evas_object_smart_callback_add(ui->connection.tls, "changed", _connection_edited_cb, ui);
    evas_object_smart_callback_add(ui->connection.sasl, "changed", _connection_edited_cb, ui);
-   evas_object_show(ui->connection.popup);
+   elaro_ui_popup_show(ui->connection.popup);
 }

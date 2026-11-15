@@ -141,13 +141,20 @@ _server_list_clicked_cb(void *data, Evas_Object *obj, void *info)
    Server_Menu *menu = data;
    Elaro_Ui *ui = menu->app;
    Elaro_Engine_Command *c = calloc(1, sizeof(*c));
+   if (!c) goto allocation_failed;
    /* Keep the clicked server, even if the current conversation has changed. */
    c->type = ELARO_ENGINE_INPUT;
    c->server = strdup(menu->server);
    c->target = strdup("");
    c->text = strdup("/list");
+   if (!c->server || !c->target || !c->text) goto allocation_failed;
+
    evas_object_del(obj);
    elaro_engine_submit(ui->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static void
@@ -163,8 +170,10 @@ _buffer_right_clicked_cb(void *data, Evas_Object *obj, void *info)
    b = elm_object_item_data_get(info);
    if (!b || *b->target || !strcmp(b->server, "Status")) return;
    menu = calloc(1, sizeof(*menu));
+   if (!menu) return;
    menu->app = ui;
    menu->server = strdup(b->server);
+   if (!menu->server) goto allocation_failed;
    ui->buffer_menu = elm_menu_add(ui->win);
    evas_object_event_callback_add(ui->buffer_menu, EVAS_CALLBACK_DEL, _server_menu_deleted_cb,
                                   menu);
@@ -174,6 +183,10 @@ _buffer_right_clicked_cb(void *data, Evas_Object *obj, void *info)
    evas_pointer_canvas_xy_get(evas_object_evas_get(obj), &x, &y);
    elm_menu_move(ui->buffer_menu, x, y);
    evas_object_show(ui->buffer_menu);
+   return;
+
+allocation_failed:
+   free(menu);
 }
 
 static char *
@@ -185,6 +198,7 @@ _buffer_text(void *data, Evas_Object *obj, const char *part)
    b = data;
    name = *b->target ? strdup(b->target)
                      : strdup(!strcmp(b->server, "Status") ? _("Status") : b->server);
+   if (!name) return NULL;
    text = elm_entry_utf8_to_markup(name);
    free(name);
    if (_buffer_unread(b))
@@ -211,10 +225,17 @@ _close_buffer_clicked_cb(void *data, Evas_Object *obj, void *info)
 
    b = data;
    c = calloc(1, sizeof(Elaro_Engine_Command));
+   if (!c) goto allocation_failed;
    c->type = ELARO_ENGINE_CLOSE;
    c->server = strdup(b->server);
    c->target = strdup(b->target);
+   if (!c->server || !c->target) goto allocation_failed;
+
    elaro_engine_submit(b->app->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static Evas_Object *
@@ -237,7 +258,7 @@ _buffer_control(void *data, Evas_Object *obj, const char *part)
 
         icon = elm_icon_add(obj);
 
-        if (!elm_icon_standard_set(icon, name))
+        if (!elaro_ui_icon_set(b->app, icon, name))
           {
              evas_object_del(icon);
 
@@ -245,8 +266,8 @@ _buffer_control(void *data, Evas_Object *obj, const char *part)
              elm_object_text_set(icon, !strcmp(b->server, "Status") ? "ⓘ"
                                          : b->channel ? "#" : "•");
           }
-        evas_object_size_hint_min_set(icon, ELM_SCALE_SIZE(20), ELM_SCALE_SIZE(20));
-        evas_object_size_hint_max_set(icon, ELM_SCALE_SIZE(20), ELM_SCALE_SIZE(20));
+        elaro_ui_size_min_set(icon, 20, 20);
+        elaro_ui_size_max_set(icon, 20, 20);
         elm_object_tooltip_text_set(icon, _buffer_unread(b)              ? _("Unread messages")
                                           : !strcmp(b->server, "Status") ? _("Status")
                                           : b->away                      ? _("Away")
@@ -269,9 +290,9 @@ _buffer_control(void *data, Evas_Object *obj, const char *part)
      {
         /* Preserve the button's footprint while reducing only its artwork. */
         holder = elm_table_add(button);
-        evas_object_size_hint_min_set(holder, ELM_SCALE_SIZE(20), ELM_SCALE_SIZE(20));
-        evas_object_size_hint_min_set(icon, ELM_SCALE_SIZE(12), ELM_SCALE_SIZE(12));
-        evas_object_size_hint_max_set(icon, ELM_SCALE_SIZE(12), ELM_SCALE_SIZE(12));
+        elaro_ui_size_min_set(holder, 20, 20);
+        elaro_ui_size_min_set(icon, 12, 12);
+        elaro_ui_size_max_set(icon, 12, 12);
         evas_object_size_hint_align_set(icon, 0.5, 0.5);
         elm_table_pack(holder, icon, 0, 0, 1, 1);
         evas_object_show(icon);
@@ -348,10 +369,12 @@ void
 elaro_ui_input_record(Elaro_Ui *ui, const char *text)
 {
    Elaro_Ui_Buffer *b = ui->current;
-   char *old;
+   char *old, *copy;
 
    if (!b || !text || !*text) return;
-   b->input_history = eina_list_append(b->input_history, strdup(text));
+   copy = strdup(text);
+   if (!copy) return;
+   b->input_history = eina_list_append(b->input_history, copy);
    if (eina_list_count(b->input_history) > 200)
      {
         old = eina_list_data_get(b->input_history);
@@ -445,6 +468,7 @@ _select_buffer(void *data, Evas_Object *obj, void *info)
    if (!b->parent && !elm_genlist_item_expanded_get(b->item) && b->last_selected)
       b = b->last_selected;
    if (b->parent) b->parent->last_selected = b;
+   else b->last_selected = NULL;
    elm_object_focus_set(ui->input, EINA_TRUE);
    if (ui->current == b) return;
    elaro_ui_users_save(ui);
@@ -475,10 +499,17 @@ _select_buffer(void *data, Evas_Object *obj, void *info)
    ui->user_scroll_restore = EINA_TRUE;
    elaro_ui_buffer_title_update(ui);
    c = calloc(1, sizeof(Elaro_Engine_Command));
+   if (!c) goto allocation_failed;
    c->type = ELARO_ENGINE_SELECT;
    c->server = strdup(b->server);
    c->target = strdup(b->target);
+   if (!c->server || !c->target) goto allocation_failed;
+
    elaro_engine_submit(ui->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 Elaro_Ui_Buffer *
@@ -492,12 +523,18 @@ elaro_ui_buffer_get(Elaro_Ui *ui, const char *server, const char *target)
 
         if (!strcasecmp(b->server, server) && !strcasecmp(b->target, target)) return b;
      }
-   if (*target) parent = elaro_ui_buffer_get(ui, server, "");
+   if (*target)
+     {
+        parent = elaro_ui_buffer_get(ui, server, "");
+        if (!parent) return NULL;
+     }
    b = calloc(1, sizeof(Elaro_Ui_Buffer));
+   if (!b) return NULL;
    b->app = ui;
    b->server = strdup(server);
    b->target = strdup(target);
    b->history = eina_strbuf_new();
+   if (!b->server || !b->target || !b->history) goto allocation_failed;
    b->parent = parent;
    ui->views = eina_list_append(ui->views, b);
    if (!parent || elm_genlist_item_expanded_get(parent->item)) _buffer_item_append(b);
@@ -509,6 +546,13 @@ elaro_ui_buffer_get(Elaro_Ui *ui, const char *server, const char *target)
       elaro_ui_buffer_select(b);
 
    return b;
+
+allocation_failed:
+   free(b->server);
+   free(b->target);
+   if (b->history) eina_strbuf_free(b->history);
+   free(b);
+   return NULL;
 }
 
 static void
@@ -596,19 +640,29 @@ elaro_ui_topic_apply(void *data, Evas_Object *obj, void *info)
 
    text = elaro_ui_field_text_get(ui->topic);
 
+   if (!text) return;
    if (!strpbrk(text, "\r\n") && strcmp(text, ui->current->topic ? ui->current->topic : ""))
      {
         c = calloc(1, sizeof(Elaro_Engine_Command));
+        if (!c) goto allocation_failed;
         c->type = ELARO_ENGINE_INPUT;
         c->server = strdup(ui->current->server);
         c->target = strdup(ui->current->target);
+        if (!c->server || !c->target) goto allocation_failed;
+
         c->text = *text ? elaro_string_printf("/topic -- %s %s", c->target, text)
                         : elaro_string_printf("/topic -delete %s", c->target);
+        if (!c->text) goto allocation_failed;
         elaro_engine_submit(ui->engine, c);
      }
    free(text);
    /* Display confirmed state until the server accepts the change. */
    _topic_update(ui);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
+   free(text);
 }
 
 static void
@@ -626,7 +680,7 @@ _buffer_free(void *data)
    free(b->topic);
    free(b->connection_host);
    free(b->connection_nick);
-   eina_strbuf_free(b->history);
+   if (b->history) eina_strbuf_free(b->history);
    free(b);
 }
 
@@ -689,6 +743,7 @@ elaro_ui_buffer_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
    if (e->type == ELARO_ENGINE_CONNECTION)
      {
         b = elaro_ui_buffer_get(ui, e->server, "");
+        if (!b) return;
         free(b->connection_host);
         free(b->connection_nick);
         b->connection_host = e->host ? strdup(e->host) : NULL;
@@ -723,6 +778,7 @@ elaro_ui_buffer_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
      {
 
         b = elaro_ui_buffer_get(ui, e->server, e->target);
+        if (!b) return;
         changed = b->channel && e->type == ELARO_ENGINE_JOINED;
         b->channel = e->type == ELARO_ENGINE_JOINED;
         if (b->item) elm_genlist_item_update(b->item);
@@ -738,6 +794,7 @@ elaro_ui_buffer_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
      {
 
         b = elaro_ui_buffer_get(ui, e->server, e->target);
+        if (!b) return;
         if (!b->channel)
           {
              b->channel = EINA_TRUE;
@@ -754,9 +811,14 @@ elaro_ui_buffer_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
      {
 
         b = elaro_ui_buffer_get(ui, e->server, e->target);
+        if (!b) return;
         if (e->type == ELARO_ENGINE_LINE && e->private_message && ui->config
-            && ui->config->notify_private_messages && b != ui->current)
-           elaro_ui_notify_private(e->server, e->target, e->text);
+            && b != ui->current)
+          {
+             if (ui->config->notify_private_messages)
+                elaro_ui_notify_private(e->server, e->target, e->text);
+             if (ui->config->enable_sounds) elaro_ui_notify_sound(ui);
+          }
         now = time(NULL);
         localtime_r(&now, &local);
         strftime(stamp, sizeof(stamp), "%H:%M", &local);

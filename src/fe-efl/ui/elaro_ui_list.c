@@ -109,10 +109,17 @@ static void
 _cancel(Elaro_Ui_List *b)
 {
    Elaro_Engine_Command *c = calloc(1, sizeof(*c));
+   if (!c) goto allocation_failed;
    c->type = ELARO_ENGINE_LIST_CANCEL;
    c->server = strdup(b->server);
+   if (!c->server) goto allocation_failed;
+
    c->request_id = b->request_id;
    elaro_engine_submit(b->app->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static void
@@ -121,6 +128,12 @@ _refresh(void *data, Evas_Object *obj, void *info)
    Elaro_Ui_List *b = data;
    Elaro_Engine_Command *c;
    if (b->loading || !b->available) return;
+   c = calloc(1, sizeof(*c));
+   if (!c) goto allocation_failed;
+   c->type = ELARO_ENGINE_LIST;
+   c->server = strdup(b->server);
+   if (!c->server) goto allocation_failed;
+
    _pending_clear(b);
    elm_genlist_clear(b->list);
    b->count = 0;
@@ -130,11 +143,12 @@ _refresh(void *data, Evas_Object *obj, void *info)
    elm_object_text_set(b->status, "");
    evas_object_hide(b->status);
    _controls(b);
-   c = calloc(1, sizeof(*c));
-   c->type = ELARO_ENGINE_LIST;
-   c->server = strdup(b->server);
    c->request_id = b->request_id;
    elaro_engine_submit(b->app->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static void
@@ -147,11 +161,18 @@ _join(void *data, Evas_Object *obj, void *info)
    if (!b->available || !item) return;
    row = elm_object_item_data_get(item);
    c = calloc(1, sizeof(*c));
+   if (!c) goto allocation_failed;
    c->type = ELARO_ENGINE_INPUT;
    c->server = strdup(b->server);
    c->target = strdup("");
    c->text = elaro_string_printf("/join %s", row->name);
+   if (!c->server || !c->target || !c->text) goto allocation_failed;
+
    elaro_engine_submit(b->app->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static void
@@ -179,7 +200,7 @@ static void
 _show(Elaro_Ui *ui, const char *server)
 {
    Elaro_Ui_List *b;
-   Evas_Object *bg, *box, *buttons, *close;
+   Evas_Object *box, *buttons, *close;
    char *title;
    if (ui->channel_list)
      {
@@ -191,22 +212,18 @@ _show(Elaro_Ui *ui, const char *server)
         elaro_ui_list_shutdown(ui);
      }
    b = ui->channel_list = calloc(1, sizeof(*b));
+   if (!b) return;
    b->app = ui;
    b->server = strdup(server);
+   if (!b->server) goto allocation_failed;
    b->available = EINA_TRUE;
    b->win = elm_win_add(ui->win, "elaro-channel-list", ELM_WIN_DIALOG_BASIC);
    title = elaro_string_printf(_("Channels — %s"), server);
    elm_win_title_set(b->win, title);
    free(title);
    elm_win_autodel_set(b->win, EINA_TRUE);
-   bg = elm_bg_add(b->win);
-   elaro_ui_expand(bg);
-   elm_win_resize_object_add(b->win, bg);
-   evas_object_show(bg);
-   box = b->box = elm_box_add(b->win);
-   elaro_ui_expand(box);
-   elm_box_padding_set(box, 0, ELM_SCALE_SIZE(8));
-   elm_win_resize_object_add(b->win, box);
+   box = b->box = elaro_ui_window_content_add(b->win);
+   elaro_ui_box_padding_set(box, 0, 8);
    evas_object_show(box);
    b->progress = elm_progressbar_add(box);
    evas_object_size_hint_weight_set(b->progress, EVAS_HINT_EXPAND, 0);
@@ -251,6 +268,11 @@ _show(Elaro_Ui *ui, const char *server)
    evas_object_resize(b->win, ELM_SCALE_SIZE(640), ELM_SCALE_SIZE(460));
    evas_object_show(b->win);
    _refresh(b, NULL, NULL);
+   return;
+
+allocation_failed:
+   free(b);
+   ui->channel_list = NULL;
 }
 
 void
@@ -281,6 +303,7 @@ elaro_ui_list_event(Elaro_Ui *ui, Elaro_Engine_Event *e)
         for (i = 0; i < e->channel_count; i++)
           {
              Elaro_Engine_Channel *row = malloc(sizeof(*row));
+             if (!row) return;
              *row = e->channels[i];
              e->channels[i].name = e->channels[i].topic = NULL;
              b->pending = eina_list_append(b->pending, row);

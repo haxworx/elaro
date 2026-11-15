@@ -1,0 +1,164 @@
+#define ENTRY_STYLE "font=Sans font_size=11 text_class=entry color=#303741ff wrap=word"
+#define GUIDE_STYLE "font=Sans font_style=Italic font_size=11 text_class=entry color=#7e8184ff wrap=none"
+#define LIST_STYLE "font=Sans font_size=11 text_class=list_item color=#303741ff wrap=none ellipsis=1.0"
+#define BG 243 240 233 255
+#define PANEL 255 253 248 255
+#define EDGE 210 202 186 255
+#define INK 48 55 65 255
+#define ACCENT 49 111 149 255
+images {
+ image: "handle.svg" COMP;
+ image: "handle-h.svg" COMP;
+ image: "about.svg" COMP;
+ image: "button.svg" COMP;
+ image: "button-hover.svg" COMP;
+ image: "button-pressed.svg" COMP;
+ image: "menu.svg" COMP;
+ image: "application.svg" COMP;
+ image: "settings.svg" COMP;
+ image: "close.svg" COMP;
+ image: "minimize.svg" COMP;
+ image: "maximize.svg" COMP;
+ image: "theme.svg" COMP;
+ image: "quit.svg" COMP;
+ image: "chat.svg" COMP;
+ image: "user-available.svg" COMP;
+ image: "user-idle.svg" COMP;
+ image: "info.svg" COMP;
+ image: "emblem-important.svg" COMP;
+ image: "audio-input-microphone.svg" COMP;
+}
+data {
+ item: "/fg/normal/entry/text" "48 55 65 255";
+ item: "/fg/normal/entry/text/guide" "126 129 132 255";
+ item: "/fg/normal/popup/text" "48 55 65 255";
+ item: "/fg/normal/popup/text/title" "48 55 65 255";
+ item: "/bg-alt/normal/list" "243 240 233 255";
+ item: "/bg-alt/normal/list/item" "243 240 233 255";
+ item: "/bg/normal/button" "255 253 248 255";
+ item: "/bg/normal/check/base" "243 240 233 255";
+ item: "/bg/normal/entry" "243 240 233 255";
+ item: "/bg/normal/entry/selection" "255 253 248 255";
+ item: "/bg/normal/frame" "255 253 248 255";
+ item: "/bg/normal/frame/title" "255 253 248 255";
+ item: "/bg/normal/hover/base" "243 240 233 255";
+ item: "/bg/normal/hoversel" "255 253 248 255";
+ item: "/bg/normal/hoversel/item" "255 253 248 255";
+ item: "/bg/normal/hoversel/menu" "255 253 248 255";
+ item: "/bg/normal/list" "255 253 248 255";
+ item: "/bg/normal/list/group" "255 253 248 255";
+ item: "/bg/normal/list/item" "255 253 248 255";
+ item: "/bg/normal/popup/base" "243 240 233 255";
+ item: "/bg/normal/scroller/base" "243 240 233 255";
+ item: "/bg/normal/segmentcontrol/item" "255 253 248 255";
+ item: "/bg/normal/slider/base" "243 240 233 255";
+ item: "/bg/normal/toggle/base" "243 240 233 255";
+ item: "/bg/pressed/button" "49 111 149 255";
+ item: "/bg/pressed/button-media" "49 111 149 255";
+ item: "/bg/pressed/check/base" "49 111 149 255";
+ item: "/bg/pressed/segmentcontrol/item" "49 111 149 255";
+ item: "/bg/pressed/toggle/base" "49 111 149 255";
+ item: "/bg/selected/entry/focus" "49 111 149 255";
+ item: "/bg/selected/hoversel/item" "49 111 149 255";
+ item: "/bg/selected/hoversel/menu/bar" "49 111 149 255";
+ item: "/bg/selected/list/item" "49 111 149 255";
+ item: "/bg/selected/segmentcontrol/item" "49 111 149 255";
+ item: "/bg/selected/titlebar" "49 111 149 255";
+ item: "/fg/normal/button" "48 55 65 255";
+ item: "/fg/normal/button-anchor" "48 55 65 255";
+ item: "/fg/normal/button-media" "48 55 65 255";
+ item: "/fg/normal/check/check" "49 111 149 255";
+ item: "/fg/normal/check/text" "48 55 65 255";
+ item: "/fg/normal/combobox/button" "48 55 65 255";
+ item: "/fg/normal/combobox/selector" "48 55 65 255";
+ item: "/fg/normal/entry/anchor" "48 55 65 255";
+ item: "/fg/normal/entry/cursor" "49 111 149 255";
+ item: "/fg/normal/entry/handler/end" "48 55 65 255";
+ item: "/fg/normal/entry/handler/start" "48 55 65 255";
+ item: "/fg/normal/frame/separator" "48 55 65 255";
+ item: "/fg/normal/frame/title" "48 55 65 255";
+ item: "/fg/normal/hoversel/button" "48 55 65 255";
+ item: "/fg/normal/hoversel/item" "48 55 65 255";
+ item: "/fg/normal/hoversel/selector" "48 55 65 255";
+ item: "/fg/normal/icon" "48 55 65 255";
+ item: "/fg/normal/list/album" "48 55 65 255";
+ item: "/fg/normal/list/group" "48 55 65 255";
+ item: "/fg/normal/list/item" "48 55 65 255";
+ item: "/fg/normal/list/item/title" "48 55 65 255";
+ item: "/fg/normal/list/item/title2" "48 55 65 255";
+ item: "/fg/normal/list/mode" "48 55 65 255";
+ item: "/fg/normal/list/track" "48 55 65 255";
+ item: "/fg/normal/list/track-title" "48 55 65 255";
+ item: "/fg/normal/panes/flush" "48 55 65 255";
+ item: "/fg/normal/panes/fold/arrow" "48 55 65 255";
+ item: "/fg/normal/panes/handle" "48 55 65 255";
+ item: "/fg/normal/scroller/bar/horizontal" "49 111 149 255";
+ item: "/fg/normal/scroller/bar/vertical" "49 111 149 255";
+ item: "/fg/normal/segmentcontrol/item" "48 55 65 255";
+ item: "/fg/normal/slider/bar" "48 55 65 255";
+ item: "/fg/normal/slider/indicator" "48 55 65 255";
+ item: "/fg/normal/slider/knob" "48 55 65 255";
+ item: "/fg/normal/slider/text" "48 55 65 255";
+ item: "/fg/normal/slider/text/units" "48 55 65 255";
+ item: "/fg/normal/spinner/arrow" "48 55 65 255";
+ item: "/fg/normal/spinner/text" "48 55 65 255";
+ item: "/fg/normal/toggle/button" "48 55 65 255";
+ item: "/fg/normal/toggle/text" "48 55 65 255";
+ item: "/fg/normal/toggle/text/off" "48 55 65 255";
+ item: "/fg/normal/toggle/text/on" "48 55 65 255";
+ item: "/fg/pressed/button" "243 240 233 255";
+ item: "/fg/pressed/button-anchor" "243 240 233 255";
+ item: "/fg/pressed/button-media" "243 240 233 255";
+ item: "/fg/pressed/check/check" "243 240 233 255";
+ item: "/fg/pressed/check/text" "243 240 233 255";
+ item: "/fg/pressed/combobox/button" "243 240 233 255";
+ item: "/fg/pressed/combobox/selector" "243 240 233 255";
+ item: "/fg/pressed/hoversel/button" "243 240 233 255";
+ item: "/fg/pressed/hoversel/selector" "243 240 233 255";
+ item: "/fg/pressed/panes/fold/arrow" "243 240 233 255";
+ item: "/fg/pressed/panes/handle" "243 240 233 255";
+ item: "/fg/pressed/scroller/bar/horizontal" "243 240 233 255";
+ item: "/fg/pressed/scroller/bar/vertical" "243 240 233 255";
+ item: "/fg/pressed/segmentcontrol/item" "243 240 233 255";
+ item: "/fg/pressed/slider/knob" "243 240 233 255";
+ item: "/fg/pressed/spinner/arrow" "243 240 233 255";
+ item: "/fg/pressed/titlebar/buttons/close" "243 240 233 255";
+ item: "/fg/pressed/toggle/button" "243 240 233 255";
+ item: "/fg/pressed/toggle/text" "243 240 233 255";
+ item: "/fg/pressed/toggle/text/off" "243 240 233 255";
+ item: "/fg/pressed/toggle/text/on" "243 240 233 255";
+ item: "/fg/selected/check/check" "243 240 233 255";
+ item: "/fg/selected/hoversel/item" "243 240 233 255";
+ item: "/fg/selected/list/album" "243 240 233 255";
+ item: "/fg/selected/list/artist" "243 240 233 255";
+ item: "/fg/selected/list/item" "243 240 233 255";
+ item: "/fg/selected/list/item/sub" "243 240 233 255";
+ item: "/fg/selected/list/item/title" "243 240 233 255";
+ item: "/fg/selected/list/item/title2" "243 240 233 255";
+ item: "/fg/selected/list/mode" "243 240 233 255";
+ item: "/fg/selected/list/title" "243 240 233 255";
+ item: "/fg/selected/list/track" "243 240 233 255";
+ item: "/fg/selected/list/track-length" "243 240 233 255";
+ item: "/fg/selected/list/track-title" "243 240 233 255";
+ item: "/fg/selected/segmentcontrol/item" "243 240 233 255";
+ item: "/fg/selected/titlebar" "243 240 233 255";
+ item: "/fg/selected/titlebar/buttons/close" "243 240 233 255";
+}
+efl_version: 1 26;
+collections {
+group { name: "elaro/icons/menu"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "menu.svg"; } } } }
+group { name: "elaro/icons/application"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "application.svg"; } } } }
+group { name: "elaro/icons/settings"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "settings.svg"; } } } }
+group { name: "elaro/icons/close"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "close.svg"; } } } }
+group { name: "elaro/icons/minimize"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "minimize.svg"; } } } }
+group { name: "elaro/icons/maximize"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "maximize.svg"; } } } }
+group { name: "elaro/icons/theme"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "theme.svg"; } } } }
+group { name: "elaro/icons/quit"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "quit.svg"; } } } }
+group { name: "elaro/icons/chat"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "chat.svg"; } } } }
+group { name: "elaro/icons/user-available"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "user-available.svg"; } } } }
+group { name: "elaro/icons/user-idle"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "user-idle.svg"; } } } }
+group { name: "elaro/icons/info"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "info.svg"; } } } }
+group { name: "elaro/icons/emblem-important"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "emblem-important.svg"; } } } }
+group { name: "elaro/icons/audio-input-microphone"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "audio-input-microphone.svg"; } } } }
+#include "../widgets.edc"
+}

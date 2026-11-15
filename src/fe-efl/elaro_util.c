@@ -22,6 +22,7 @@ elaro_string_printf(const char *format, ...)
    va_list args;
 
    buffer = eina_strbuf_new();
+   if (!buffer) return NULL;
    va_start(args, format);
    eina_strbuf_append_vprintf(buffer, format, args);
    va_end(args);
@@ -37,7 +38,9 @@ elaro_path_join(const char *first, ...)
    va_list args;
    size_t length;
 
+   if (!first) return NULL;
    buffer = eina_strbuf_new();
+   if (!buffer) return NULL;
    eina_strbuf_append(buffer, first);
    va_start(args, first);
    while ((part = va_arg(args, const char *)))
@@ -70,6 +73,7 @@ elaro_file_read(const char *path)
    if (map) eina_file_map_free(file, (void *)map);
    eina_file_close(file);
 
+   if (!text) return NULL;
    return text;
 }
 
@@ -83,12 +87,14 @@ elaro_user_name_get(void)
    size = sysconf(_SC_GETPW_R_SIZE_MAX);
    if (size < 1024) size = 16384;
    buffer = malloc(size);
+   if (!buffer) return NULL;
    result = NULL;
    if (buffer && !getpwuid_r(getuid(), &record, buffer, size, &result) && result)
       name = strdup(record.pw_name);
    else name = strdup("elaro");
    free(buffer);
 
+   if (!name) return NULL;
    return name;
 }
 
@@ -105,6 +111,7 @@ elaro_executable_find(const char *name)
    for (p = paths; p && *p; p++)
      {
         candidate = elaro_path_join(**p ? *p : ".", name, NULL);
+        if (!candidate) break;
         if (ecore_file_can_exec(candidate) && !ecore_file_is_dir(candidate)) break;
         free(candidate);
         candidate = NULL;
@@ -122,6 +129,7 @@ elaro_command_quote(const char *argument)
    const char *p;
 
    buffer = eina_strbuf_new();
+   if (!buffer) return NULL;
    eina_strbuf_append_char(buffer, '\'');
    for (p = argument; *p; p++)
      {
@@ -140,6 +148,7 @@ elaro_uri_escape(const char *text)
    const unsigned char *p;
 
    buffer = eina_strbuf_new();
+   if (!buffer) return NULL;
    for (p = (const unsigned char *)text; *p; p++)
      {
         if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9')
@@ -168,6 +177,7 @@ elaro_uri_unescape(const char *text)
    int high, low;
 
    buffer = eina_strbuf_new();
+   if (!buffer) return NULL;
    for (p = (const unsigned char *)text; *p; p++)
      {
         if (*p != '%') eina_strbuf_append_char(buffer, *p);
@@ -231,6 +241,7 @@ elaro_email_from_realname(const char *realname)
    end = strchr(++start, '>');
    if (!end || end[1]) return NULL;
    email = strndup(start, end - start);
+   if (!email) return NULL;
    if (elaro_email_valid(email)) return email;
    free(email);
    return NULL;
@@ -253,6 +264,7 @@ elaro_avatar_hash_get(const char *email)
    while (end > start && isspace((unsigned char)end[-1]))
       end--;
    normalized = strndup(start, end - start);
+   if (!normalized) return NULL;
    if (!elaro_email_valid(normalized))
      {
         free(normalized);
@@ -263,6 +275,7 @@ elaro_avatar_hash_get(const char *email)
    SHA256((unsigned char *)normalized, strlen(normalized), digest);
    free(normalized);
    result = malloc(SHA256_DIGEST_LENGTH * 2 + 1);
+   if (!result) return NULL;
    for (i = 0; i < SHA256_DIGEST_LENGTH; i++)
      {
         result[2 * i] = hex[digest[i] >> 4];

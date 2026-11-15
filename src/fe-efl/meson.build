@@ -3,8 +3,10 @@ elementary_dep = declare_dependency(dependencies : [
 eet_dep = dependency('eet')
 ecore_file_dep = dependency('ecore-file')
 efreet_dep = dependency('efreet')
-frontend_support = static_library('efl-support', 'elaro_util.c',
-  dependencies : [ecore_file_dep, dep[2]])
+frontend_support = static_library('efl-support', 'elaro_util.c', 'ui/elaro_ui_sizing.c',
+  'ui/elaro_ui_window.c',
+  include_directories : rootinc,
+  dependencies : [elementary_dep, ecore_file_dep, dep[2]])
 config_lib = static_library('connection-config', 'elaro_config.c',
   include_directories : rootinc,
   link_with : frontend_support,

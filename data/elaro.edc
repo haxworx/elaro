@@ -39,6 +39,22 @@ part { \
 }
 
 collections {
+   sounds {
+      sample {
+         name: "private-message" COMP;
+         source: "icq.wav";
+      }
+   }
+   group {
+      name: "elaro/sounds";
+      programs {
+         program {
+            signal: "private,message";
+            source: "elaro";
+            action: PLAY_SAMPLE "private-message" 1.0 ALERT;
+         }
+      }
+   }
    ELARO_ICON("elaro/icons/menu", "menu.png")
    ELARO_ICON("elaro/icons/application", "elaro.png")
    ELARO_ICON("elaro/icons/person", "person.svg")

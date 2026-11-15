@@ -26,6 +26,7 @@ _history_prefix_decode(const char *encoded, size_t length)
 
    if (length % 2) return NULL;
    result = malloc(length / 2 + 1);
+   if (!result) return NULL;
    for (i = 0; i < length; i += 2)
      {
         const char *digits = "0123456789abcdef";
@@ -52,6 +53,7 @@ _history_prefix_item(void *data, Evas_Object *history, const char *item)
    const char *font, *end;
    char *prefix, *format;
    Eina_Bool timestamp;
+   int r = 224, g = 233, b = 248, a = 255;
 
    if (strncmp(item, "chat-prefix:", 12)) return NULL;
    if (strstr(item + 12, ":repeat"))
@@ -69,15 +71,22 @@ _history_prefix_item(void *data, Evas_Object *history, const char *item)
    if (length && prefix[length - 1] == ' ') prefix[length - 1] = 0;
    text = _history_textblock(history);
    style = evas_textblock_style_new();
-   /* Textblock user DEFAULT styles replace one another; merge these cell
-    * settings into the font style instead of hiding the configured font. */
-   font_style = evas_object_textblock_style_user_peek(elm_entry_textblock_get(history));
+   /* The user style can be DEFAULT='' or a partial override. Use the resolved
+    * base style so inline cells always have a font and size of their own. */
+   font_style = evas_object_textblock_style_get(elm_entry_textblock_get(history));
    font = font_style ? evas_textblock_style_get(font_style) : "DEFAULT=''";
    if (!font) font = "DEFAULT=''";
-   end = strrchr(font, '\'');
-   format = elaro_string_printf("%.*s wrap=none ellipsis=1.0 align=%s left_margin=0 right_margin=%d'",
-                                end ? (int)(end - font) : 9, font,
-                                timestamp ? "left" : "right", timestamp ? 0 : ELM_SCALE_SIZE(8));
+   end = strstr(font, "DEFAULT='");
+   if (end) {
+      end += 9;
+      while (*end && (*end != '\'' || (end > font && end[-1] == '\\'))) end++;
+   }
+   edje_color_class_get("/fg/normal/entry/text", &r, &g, &b, &a,
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+   format = elaro_string_printf("%.*s color=#%02x%02x%02x%02x wrap=none ellipsis=1.0 align=%s left_margin=0 right_margin=%d'%s",
+                                end ? (int)(end - font) : 9, font, r, g, b, a,
+                                timestamp ? "left" : "right", timestamp ? 0 : ELM_SCALE_SIZE(8),
+                                end && *end ? end + 1 : "");
    evas_textblock_style_set(style, format);
    free(format);
    evas_object_textblock_style_user_push(text, style);
@@ -152,6 +161,7 @@ _history_columns(Evas_Object *history, const char *markup, Eina_Bool reset)
    if (timestamp_width > gutter) timestamp_width = gutter;
    if (saved_gutter) *saved_gutter = gutter;
    out = eina_strbuf_new();
+   if (!out) goto allocation_failed;
    for (line = markup; *line; line = end + 5)
      {
         end = strstr(line, "<br/>");
@@ -187,6 +197,10 @@ _history_columns(Evas_Object *history, const char *markup, Eina_Bool reset)
    result = eina_strbuf_string_steal(out);
    eina_strbuf_free(out);
    return result;
+
+allocation_failed:
+   free(author);
+   return NULL;
 }
 
 static void
@@ -197,7 +211,18 @@ _history_refresh(Elaro_Ui *ui, Eina_Bool preserve_scroll)
    double *position;
 
    if (!ui->history || !ui->current) return;
-   if (!preserve_scroll) free(evas_object_data_del(ui->history, "history-position"));
+   if (!preserve_scroll)
+     {
+        Ecore_Job *job = evas_object_data_del(ui->history, "history-position-job");
+        if (job) ecore_job_del(job);
+        free(evas_object_data_del(ui->history, "history-position"));
+        /* Switching conversations must follow the latest message even if a
+         * resize/reflow arrives before Elementary finishes loading the text. */
+        position = malloc(sizeof(*position));
+        if (!position) return;
+        *position = 1.0;
+        evas_object_data_set(ui->history, "history-position", position);
+     }
    if (preserve_scroll && !evas_object_data_get(ui->history, "history-position"))
      {
         elm_scroller_region_get(ui->history, NULL, &y, NULL, &h);
@@ -205,12 +230,17 @@ _history_refresh(Elaro_Ui *ui, Eina_Bool preserve_scroll)
         if (content_h > h && y + h < content_h - ELM_SCALE_SIZE(4))
           {
              position = malloc(sizeof(*position));
+             if (!position) return;
              *position = (double)y / (content_h - h);
              evas_object_data_set(ui->history, "history-position", position);
           }
      }
    evas_object_data_set(ui->history, "history-ui", ui);
    markup = _history_columns(ui->history, eina_strbuf_string_get(ui->current->history), EINA_TRUE);
+   /* Edje reuses inline objects with identical item names. Drop those cells
+    * before a style reflow so they cannot retain the previous theme's color. */
+   if (evas_object_data_del(ui->history, "history-style-dirty"))
+      elm_entry_entry_set(ui->history, "");
    elm_entry_entry_set(ui->history, markup);
    free(markup);
 }
@@ -235,6 +265,7 @@ _history_resize(void *data, Evas *evas, Evas_Object *obj, void *info)
 static void
 _history_font_changed(void *data, Evas_Object *obj, void *info)
 {
+   evas_object_data_set(obj, "history-style-dirty", (void *)1);
    _history_resize(NULL, NULL, obj, NULL);
 }
 
@@ -247,12 +278,13 @@ _history_copy(void *data)
    const char *p, *start, *end, *close;
    char *selection;
    Eina_Strbuf *markup;
-   char *prefix, *plain;
+   char *prefix, *plain = NULL;
 
    evas_object_data_del(history, "history-copy-job");
    selection = evas_object_data_del(history, "history-copy-selection");
    if (!selection) return;
    markup = eina_strbuf_new();
+   if (!markup) goto done;
    for (p = selection; (start = strstr(p, "<item ")); p = close + 7)
      {
         end = strstr(start, "chat-prefix:");
@@ -269,22 +301,27 @@ _history_copy(void *data)
    eina_strbuf_append(markup, p);
    eina_strbuf_replace_all(markup, "<ps/>", "<br/>");
    plain = elm_entry_markup_to_utf8(eina_strbuf_string_get(markup));
+   if (!plain) goto done;
    elm_cnp_selection_set(history, ELM_SEL_TYPE_CLIPBOARD, ELM_SEL_FORMAT_TEXT, plain, strlen(plain) + 1);
+done:
    free(selection);
    free(plain);
-   eina_strbuf_free(markup);
+   if (markup) eina_strbuf_free(markup);
 }
 
 static void
 _history_copy_requested(void *data, Evas_Object *obj, void *info)
 {
    const char *selection = elm_entry_selection_get(obj);
+   char *copy;
 
    /* Snapshot before Elementary updates clipboard ownership, which can clear
     * the live selection before the deferred clipboard conversion runs. */
    free(evas_object_data_del(obj, "history-copy-selection"));
    if (!selection) return;
-   evas_object_data_set(obj, "history-copy-selection", strdup(selection));
+   copy = strdup(selection);
+   if (!copy) return;
+   evas_object_data_set(obj, "history-copy-selection", copy);
    if (!evas_object_data_get(obj, "history-copy-job"))
       evas_object_data_set(obj, "history-copy-job", ecore_job_add(_history_copy, obj));
 }
@@ -313,10 +350,11 @@ _history_position_restore(void *data)
 
    evas_object_data_del(obj, "history-position-job");
    if (!position) return;
+   if (*position >= 1.0) elm_entry_cursor_end_set(obj);
    elm_entry_calc_force(obj);
    elm_scroller_region_get(obj, NULL, NULL, NULL, &h);
    elm_scroller_child_size_get(obj, NULL, &content_h);
-   elm_scroller_region_show(obj, 0, *position * (content_h - h), 1, h);
+   elm_scroller_region_show(obj, 0, *position * (content_h > h ? content_h - h : 0), 1, h);
    free(position);
 }
 
@@ -386,9 +424,12 @@ Evas_Object *
 elaro_ui_history_add(Evas_Object *parent)
 {
    Evas_Object *history;
+   Evas_Coord *gutter = calloc(1, sizeof(*gutter));
 
+   if (!gutter) return NULL;
    history = elaro_ui_read_view_add(parent);
-   evas_object_data_set(history, "history-gutter", calloc(1, sizeof(Evas_Coord)));
+   elm_object_style_set(history, "elaro/history");
+   evas_object_data_set(history, "history-gutter", gutter);
    elm_entry_line_wrap_set(history, ELM_WRAP_MIXED);
    elm_entry_select_allow_set(history, EINA_TRUE);
    elm_entry_context_menu_disabled_set(history, EINA_FALSE);
@@ -403,7 +444,9 @@ elaro_ui_history_add(Evas_Object *parent)
    elm_entry_item_provider_prepend(history, _history_prefix_item, NULL);
    evas_object_event_callback_add(history, EVAS_CALLBACK_RESIZE, _history_resize, NULL);
    evas_object_event_callback_add(history, EVAS_CALLBACK_DEL, _history_del, NULL);
-   evas_object_smart_callback_add(history, "chat,font,changed", _history_font_changed, NULL);
+   /* Inline cells own copied text styles; rebuild them after toolkit re-themes
+    * as well as font edits, including window opacity and desktop changes. */
+   evas_object_smart_callback_add(history, "theme,changed", _history_font_changed, NULL);
    evas_object_smart_callback_add(history, "selection,copy", _history_copy_requested, NULL);
    return history;
 }

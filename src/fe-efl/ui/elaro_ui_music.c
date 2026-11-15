@@ -32,8 +32,8 @@ _button_icon_set(Evas_Object *button, const char *name, const char *label)
    if (current && !strcmp(current, name)) return;
 
    elm_icon_standard_set(icon, name);
-   evas_object_size_hint_min_set(icon, ELM_SCALE_SIZE(20), ELM_SCALE_SIZE(20));
-   evas_object_size_hint_max_set(icon, ELM_SCALE_SIZE(20), ELM_SCALE_SIZE(20));
+   elaro_ui_size_min_set(icon, 20, 20);
+   elaro_ui_size_max_set(icon, 20, 20);
    elm_object_tooltip_text_set(button, label);
    elm_object_access_info_set(button, label);
 }
@@ -377,10 +377,12 @@ elaro_ui_music_show(Elaro_Ui *ui, const char *url)
 
    if (ui->music) evas_object_del(ui->music);
    music = calloc(1, sizeof(*music));
+   if (!music) return;
    music->ui = ui;
    music->volume = 1.0;
    music->url = strdup(url);
 
+   if (!music->url) goto allocation_failed;
    ui->music = elm_popup_add(ui->win);
    elm_object_part_text_set(ui->music, "title,text", _("Audio preview"));
    evas_object_smart_callback_add(ui->music, "dismissed", _music_close_cb, ui);
@@ -407,7 +409,7 @@ elaro_ui_music_show(Elaro_Ui *ui, const char *url)
    evas_object_show(music->time);
    controls = music->controls = elm_box_add(box);
    elm_box_horizontal_set(controls, EINA_TRUE);
-   elm_box_padding_set(controls, ELM_SCALE_SIZE(12), 0);
+   elaro_ui_box_padding_set(controls, 12, 0);
 
    music->play = elm_button_add(controls);
    _button_icon_set(music->play, "media-playback-pause", _("Pause"));
@@ -441,8 +443,11 @@ elaro_ui_music_show(Elaro_Ui *ui, const char *url)
    music->exit_handler = ecore_event_handler_add(ECORE_EXE_EVENT_DEL, _music_exit_cb, music);
    evas_object_event_callback_add(ui->music, EVAS_CALLBACK_DEL, _music_deleted_cb, music);
    evas_object_event_callback_add(ui->music, EVAS_CALLBACK_FREE, _music_free_cb, music);
-   elm_object_part_content_set(ui->music, "button1",
-                               elaro_ui_button_add(ui->music, _("Close"), _music_close_cb, ui));
+   elaro_ui_popup_close_button_add(ui, ui->music, _music_close_cb, ui);
    _music_start(music);
    evas_object_show(ui->music);
+   return;
+
+allocation_failed:
+   free(music);
 }

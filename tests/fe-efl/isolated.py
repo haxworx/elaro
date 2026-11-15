@@ -5,5 +5,5 @@ import sys
 import tempfile
 
 with tempfile.TemporaryDirectory() as home:
-    result = subprocess.run(sys.argv[1:], env={**os.environ, 'HOME': home, 'XDG_CONFIG_HOME': os.path.join(home, '.config')}, timeout=12)
+    result = subprocess.run(sys.argv[1:], env={**os.environ, 'HOME': home, 'XDG_CONFIG_HOME': os.path.join(home, '.config')}, timeout=float(os.environ.get("ELARO_TEST_TIMEOUT", "12")))
     sys.exit(result.returncode)

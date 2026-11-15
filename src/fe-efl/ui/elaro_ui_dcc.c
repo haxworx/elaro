@@ -16,6 +16,7 @@ _transfer_submit(Transfer_Window *t, Elaro_Engine_Command_Type type)
    Elaro_Engine_Command *c;
 
    c = calloc(1, sizeof(Elaro_Engine_Command));
+   if (!c) goto allocation_failed;
    c->type = type;
    c->transfer_id = t->id;
 
@@ -27,7 +28,16 @@ _transfer_submit(Transfer_Window *t, Elaro_Engine_Command_Type type)
         c->server = strdup(t->server);
         c->target = strdup(t->nick);
      }
+
+   if (((type == ELARO_ENGINE_TRANSFER_ACCEPT || type == ELARO_ENGINE_TRANSFER_SEND) && !c->text)
+       || (type == ELARO_ENGINE_TRANSFER_SEND && !c->server)
+       || (type == ELARO_ENGINE_TRANSFER_SEND && !c->target))
+      goto allocation_failed;
    elaro_engine_submit(t->app->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static void
@@ -98,32 +108,29 @@ _transfer_window_add(Elaro_Ui *ui, unsigned int id, const char *server, const ch
                      const char *filename, uint64_t size, Eina_Bool outgoing)
 {
    Transfer_Window *t;
-   Evas_Object *background, *box, *details, *buttons;
+   Evas_Object *box, *details, *buttons;
    char *description, *safe, *path;
    const char *downloads;
    char *basename;
 
    t = calloc(1, sizeof(Transfer_Window));
+   if (!t) return;
    t->app = ui;
    t->id = id;
    t->outgoing = outgoing;
    t->server = strdup(server);
    t->nick = strdup(nick);
 
+   if (!t->server || !t->nick) goto allocation_failed;
    t->win = elm_win_add(ui->win, "elaro-transfer", ELM_WIN_DIALOG_BASIC);
    elm_win_title_set(t->win, t->outgoing ? _("Send file — Elaro") : _("Incoming file — Elaro"));
    elm_win_autodel_set(t->win, EINA_TRUE);
 
-   background = elm_bg_add(t->win);
-   elaro_ui_expand(background);
-   elm_win_resize_object_add(t->win, background);
    evas_object_event_callback_add(t->win, EVAS_CALLBACK_DEL, _transfer_window_deleted_cb, t);
    eina_hash_add(ui->dcc.windows, &t->id, t);
 
-   box = elm_box_add(t->win);
-   elaro_ui_expand(box);
+   box = elaro_ui_window_content_add(t->win);
    elm_box_padding_set(box, 6, 8);
-   elm_win_resize_object_add(t->win, box);
 
    details = elm_label_add(box);
    description = t->outgoing ? elaro_string_printf(_("Send a file to %s on %s"), nick, server)
@@ -139,12 +146,14 @@ _transfer_window_add(Elaro_Ui *ui, unsigned int id, const char *server, const ch
    elm_box_pack_end(box, details);
    evas_object_show(details);
    basename = strdup(ecore_file_file_get(filename));
+   if (!basename) goto window_failed;
 
    if (!strcmp(basename, ".") || !strcmp(basename, "..") || !strcmp(basename, "/"))
      {
         free(basename);
         basename = strdup("download");
      }
+   if (!basename) goto window_failed;
    downloads = efreet_download_dir_get();
    path = elaro_path_join(downloads && ecore_file_is_dir(downloads) ? downloads
                                                                     : eina_environment_home_get(),
@@ -197,6 +206,16 @@ _transfer_window_add(Elaro_Ui *ui, unsigned int id, const char *server, const ch
    evas_object_show(buttons);
    evas_object_resize(t->win, 560, 320);
    evas_object_show(t->win);
+   return;
+
+allocation_failed:
+   free(t->server);
+   free(t->nick);
+   free(t);
+   return;
+
+window_failed:
+   evas_object_del(t->win);
 }
 
 void

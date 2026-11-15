@@ -64,10 +64,17 @@ _request_query(Elaro_Ui *ui, const char *server, const char *nick)
    Elaro_Engine_Command *c;
 
    c = calloc(1, sizeof(Elaro_Engine_Command));
+   if (!c) goto allocation_failed;
    c->type = ELARO_ENGINE_QUERY;
    c->server = strdup(server);
    c->target = strdup(nick);
+   if (!c->server || !c->target) goto allocation_failed;
+
    elaro_engine_submit(ui->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static char *
@@ -107,7 +114,7 @@ _user_icon(void *data, Evas_Object *obj, const char *part)
 
    icon = elm_icon_add(obj);
 
-   if (!elm_icon_standard_set(icon, name))
+   if (!elaro_ui_icon_set(u->app, icon, name))
      {
         evas_object_del(icon);
 
@@ -117,8 +124,8 @@ _user_icon(void *data, Evas_Object *obj, const char *part)
                                   : u->status == '+'               ? "+"
                                                                    : "•");
      }
-   evas_object_size_hint_min_set(icon, ELM_SCALE_SIZE(20), ELM_SCALE_SIZE(20));
-   evas_object_size_hint_max_set(icon, ELM_SCALE_SIZE(20), ELM_SCALE_SIZE(20));
+   elaro_ui_size_min_set(icon, 20, 20);
+   elaro_ui_size_max_set(icon, 20, 20);
    elm_object_tooltip_text_set(icon, role);
 
    return icon;
@@ -222,11 +229,16 @@ elaro_ui_users_complete(void *data, Evas_Object *obj, Evas_Event_Key_Down *ev)
         prefix = strndup(start, end - start);
         ui->completion.before = strndup(text, start - text);
         ui->completion.after = strdup(end);
+        if (!prefix || !ui->completion.before || !ui->completion.after) goto allocation_failed;
         iter = eina_hash_iterator_data_new(ui->users);
         EINA_ITERATOR_FOREACH (iter, u)
            if (!strncasecmp(u->nick, prefix, strlen(prefix)))
-              ui->completion.matches = eina_list_sorted_insert(
-                  ui->completion.matches, _completion_compare, strdup(u->nick));
+             {
+                char *match = strdup(u->nick);
+                if (match)
+                   ui->completion.matches = eina_list_sorted_insert(
+                       ui->completion.matches, _completion_compare, match);
+             }
         eina_iterator_free(iter);
         free(prefix);
         ui->completion.next = ui->completion.matches;
@@ -237,6 +249,7 @@ elaro_ui_users_complete(void *data, Evas_Object *obj, Evas_Event_Key_Down *ev)
    separator = *ui->completion.before ? "" : ": ";
    result = elaro_string_printf("%s%s%s%s", ui->completion.before, nick, separator,
                                 ui->completion.after);
+   if (!result) return EINA_TRUE;
    markup = elm_entry_utf8_to_markup(result);
    elm_entry_entry_set(obj, markup);
    ui->completion.cursor = eina_unicode_utf8_get_len(ui->completion.before)
@@ -247,6 +260,12 @@ elaro_ui_users_complete(void *data, Evas_Object *obj, Evas_Event_Key_Down *ev)
    ui->completion.text = result;
    ui->completion.next = eina_list_next(ui->completion.next);
    if (!ui->completion.next) ui->completion.next = ui->completion.matches;
+   return EINA_TRUE;
+
+allocation_failed:
+   free(prefix);
+   free(text);
+   _completion_reset(ui);
    return EINA_TRUE;
 }
 
@@ -310,30 +329,37 @@ _user_tooltip(void *data, Evas_Object *obj, Evas_Object *tooltip, void *item)
    box = elm_box_add(obj);
    u->preview = box;
    evas_object_event_callback_add(box, EVAS_CALLBACK_DEL, _preview_deleted, u);
-   elm_box_padding_set(box, 0, ELM_SCALE_SIZE(6));
+   elaro_ui_box_padding_set(box, 0, 6);
    image = elm_icon_add(box);
    elaro_ui_avatar_placeholder_set(image);
-   evas_object_size_hint_min_set(image, ELM_SCALE_SIZE(96), ELM_SCALE_SIZE(96));
+   elaro_ui_size_min_set(image, 96, 96);
    elm_box_pack_end(box, image);
    evas_object_show(image);
    label = elm_label_add(box);
    elm_label_line_wrap_set(label, ELM_WRAP_WORD);
-   elm_label_wrap_width_set(label, ELM_SCALE_SIZE(240));
+   elaro_ui_wrap_width_set(label, 240);
    elm_box_pack_end(box, label);
    evas_object_show(label);
    evas_object_data_set(box, "label", label);
    evas_object_data_set(box, "image", image);
    if (!u->lookup_requested && !u->realname && u->app->current)
      {
-        u->lookup_requested = EINA_TRUE;
         c = calloc(1, sizeof(Elaro_Engine_Command));
+        if (!c) goto allocation_failed;
         c->type = ELARO_ENGINE_USER_INFO;
         c->server = strdup(u->app->current->server);
         c->target = strdup(u->nick);
+        if (!c->server || !c->target) goto allocation_failed;
+
+        u->lookup_requested = EINA_TRUE;
         elaro_engine_submit(u->app->engine, c);
         u->lookup_timer = ecore_timer_add(10, _lookup_timeout, u);
      }
    _preview_update(u);
+   return NULL;
+
+allocation_failed:
+   elaro_engine_command_free(c);
    return NULL;
 }
 
@@ -439,7 +465,9 @@ elaro_ui_users_update(Elaro_Ui *ui, const Elaro_Engine_User *users, unsigned int
         if (!u)
           {
              u = calloc(1, sizeof(User));
+             if (!u) return;
              u->nick = strdup(nick);
+             if (!u->nick) goto allocation_failed;
              u->app = ui;
              u->status = status;
              u->away = users[i].away;
@@ -489,6 +517,10 @@ elaro_ui_users_update(Elaro_Ui *ui, const Elaro_Engine_User *users, unsigned int
         if (item) elm_genlist_item_show(item, ELM_GENLIST_ITEM_SCROLLTO_TOP);
         ui->user_scroll_restore = EINA_FALSE;
      }
+   return;
+
+allocation_failed:
+   free(u);
 }
 
 static void
@@ -530,7 +562,7 @@ _user_action_clicked_cb(void *data, Evas_Object *obj, void *info)
    User_Menu *menu;
    Elaro_Ui *ui;
    char *server, *target;
-   Elaro_Engine_Command *c;
+   Elaro_Engine_Command *c = NULL;
    Elaro_Ui_Buffer *b;
 
    action = data;
@@ -540,6 +572,8 @@ _user_action_clicked_cb(void *data, Evas_Object *obj, void *info)
    server = strdup(menu->server);
    target
        = strdup(action->channel_action ? menu->channel : (action->private_reply ? menu->nick : ""));
+
+   if (!server || !target) goto allocation_failed;
 
    if (action->send_file)
      {
@@ -554,10 +588,13 @@ _user_action_clicked_cb(void *data, Evas_Object *obj, void *info)
    if (action->command)
      {
         c = calloc(1, sizeof(Elaro_Engine_Command));
+        if (!c) goto allocation_failed;
         c->type = ELARO_ENGINE_INPUT;
         c->server = strdup(server);
         c->target = strdup(target);
         c->text = elaro_string_printf(action->command, menu->nick);
+        if (!c->server || !c->target || !c->text) goto allocation_failed;
+
         elaro_engine_submit(ui->engine, c);
      }
    evas_object_del(obj);
@@ -571,8 +608,14 @@ _user_action_clicked_cb(void *data, Evas_Object *obj, void *info)
         return;
      }
    b = elaro_ui_buffer_get(ui, server, target);
-   elaro_ui_buffer_select(b);
+   if (b) elaro_ui_buffer_select(b);
    elm_object_focus_set(ui->input, EINA_TRUE);
+   free(server);
+   free(target);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
    free(server);
    free(target);
 }
@@ -596,11 +639,13 @@ _user_right_clicked_cb(void *data, Evas_Object *obj, void *info)
 
    if (ui->user_menu) evas_object_del(ui->user_menu);
    menu = calloc(1, sizeof(User_Menu));
+   if (!menu) return;
    menu->app = ui;
    menu->server = strdup(ui->current->server);
    menu->nick = strdup(u->nick);
    menu->channel = strdup(ui->current->target);
 
+   if (!menu->server || !menu->nick || !menu->channel) goto allocation_failed;
    ui->user_menu = elm_menu_add(ui->win);
    evas_object_data_set(ui->user_menu, "user-menu", menu);
    evas_object_event_callback_add(ui->user_menu, EVAS_CALLBACK_DEL, _user_menu_deleted_cb, menu);
@@ -617,11 +662,21 @@ _user_right_clicked_cb(void *data, Evas_Object *obj, void *info)
    evas_pointer_canvas_xy_get(evas_object_evas_get(obj), &x, &y);
    elm_menu_move(ui->user_menu, x, y);
    evas_object_show(ui->user_menu);
+   return;
+
+allocation_failed:
+   free(menu->server);
+   free(menu->nick);
+   free(menu->channel);
+   free(menu);
 }
 
 void
 elaro_ui_users_init(Elaro_Ui *ui)
 {
+   /* Nick rows have one line and a fixed icon size. Keep their geometry
+    * stable while a deferred snapshot restores the channel viewport. */
+   elm_genlist_homogeneous_set(ui->nicks, EINA_TRUE);
    ui->users = eina_hash_string_superfast_new(NULL);
    ui->user_class = elm_genlist_item_class_new();
    ui->user_class->item_style = "default_style";

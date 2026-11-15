@@ -4,6 +4,15 @@ engine_test = executable('test-efl-engine', 'test-engine.c',
   dependencies : dep + [threads_dep],
   export_dynamic : true)
 python = find_program('python3')
+notify_sound_test = executable('test-notify-sound', 'test-notify-sound.c',
+  '../../src/fe-efl/ui/elaro_ui_notify.c', '../../src/fe-efl/ui/elaro_ui_text.c',
+  include_directories : rootinc,
+  link_with : frontend_support,
+  link_depends : elaro_assets,
+  dependencies : [elementary_dep, eet_dep, ecore_file_dep])
+test('Private message sound archive', python,
+  args : [files('isolated.py'), notify_sound_test], timeout : 15,
+  env : ['ELM_ENGINE=buffer', 'ECORE_NO_SYSTEM_MODULES=1', 'EINA_LOG_LEVEL=0'])
 test('EFL engine round trip', python,
   args : [files('roundtrip.py'), engine_test], timeout : 90)
 
@@ -19,6 +28,13 @@ config_test = executable('test-connection-config', 'test-config.c',
   dependencies : [dep[0], eet_dep, ecore_file_dep])
 test('Eet connection configuration', python,
   args : [files('isolated.py'), config_test], timeout : 15)
+
+allocation_failure_test = executable('test-allocation-failure', 'test-allocation-failure.c',
+  include_directories : rootinc,
+  link_with : frontend_support,
+  dependencies : [eet_dep, ecore_file_dep, intl_dep])
+test('Configuration allocation failures', allocation_failure_test,
+  env : ['EINA_LOG_LEVEL=0', 'EINA_LOG_BACKTRACE=0'])
 test('IRC SASL authentication', python,
   args : [files('roundtrip.py'), engine_test, '--sasl'], timeout : 90)
 
@@ -58,6 +74,7 @@ test('Music playback helper', python,
   args : [files('music.py'), elaro_efl], timeout : 40)
 
 links_test = executable('test-links', 'test-links.c',
+  '../../src/fe-efl/ui/elaro_ui_util.c',
   include_directories : rootinc,
   link_with : config_lib,
   dependencies : [dep[0], elementary_dep, eet_dep, ecore_file_dep])
@@ -74,6 +91,7 @@ test('EFL strings and process arguments', efl_util_test, timeout : 10,
   env : ['ECORE_NO_SYSTEM_MODULES=1', 'EINA_LOG_LEVEL=0'])
 
 ui_state_test = executable('test-ui-state', 'test-ui-state.c',
+  '../../src/engine/elaro_command.c',
   '../../src/fe-efl/ui/elaro_ui_buffers.c', '../../src/fe-efl/ui/elaro_ui_users.c',
   '../../src/fe-efl/ui/elaro_ui_avatar.c', '../../src/fe-efl/ui/elaro_ui_history.c',
   '../../src/fe-efl/ui/elaro_ui_util.c', '../../src/fe-efl/ui/elaro_ui_text.c',
@@ -93,6 +111,7 @@ test('Engine identity defaults', python,
   args : [files('isolated.py'), engine_defaults_test], timeout : 15)
 
 connection_ui_test = executable('test-connection-ui', 'test-connection-ui.c',
+  '../../src/engine/elaro_command.c',
   '../../src/fe-efl/ui/elaro_ui_util.c',
   include_directories : rootinc,
   link_with : config_lib,
@@ -102,6 +121,8 @@ test('Connection save and connect actions', python,
   env : ['ELM_ENGINE=buffer', 'ECORE_NO_SYSTEM_MODULES=1', 'EINA_LOG_LEVEL=0'])
 
 avatar_ui_test = executable('test-avatar-ui', 'test-avatar-ui.c',
+  '../../src/fe-efl/ui/elaro_ui_util.c',
+  '../../src/engine/elaro_command.c',
   link_depends : elaro_assets,
   include_directories : rootinc,
   link_with : frontend_support,
@@ -135,6 +156,7 @@ bans_test = executable('test-bans', 'test-bans.c',
 test('Channel ban management', python,
   args : [files('bans.py'), bans_test], timeout : 45)
 bans_ui_test = executable('test-bans-ui', 'test-bans-ui.c',
+  '../../src/engine/elaro_command.c',
   include_directories : rootinc,
   link_with : frontend_support,
   dependencies : [elementary_dep, ecore_file_dep])
@@ -159,6 +181,7 @@ list_test = executable('test-list', 'test-list.c',
 test('IRC channel list', python,
   args : [files('list.py'), list_test], timeout : 50)
 list_ui_test = executable('test-list-ui', 'test-list-ui.c',
+  '../../src/engine/elaro_command.c',
   '../../src/fe-efl/ui/elaro_ui_text.c',
   include_directories : rootinc,
   link_with : frontend_support,
@@ -192,3 +215,48 @@ receive_test = executable('test-receive', 'test-receive.c',
 openssl_program = find_program('openssl')
 test('Two clients receive complete TLS bursts', python,
   args : [files('receive.py'), receive_test, openssl_program.full_path()], timeout : 30)
+
+# Allocation recovery and cache insertion must also work when Eina's safety
+# macros do not branch or evaluate their GOTO expressions.
+allocation_failure_no_safety_test = executable('test-allocation-failure-no-safety',
+  'test-allocation-failure.c',
+  include_directories : rootinc,
+  c_args : ['-DELARO_TEST_NO_SAFETY_CHECKS'],
+  link_with : frontend_support,
+  dependencies : [eet_dep, ecore_file_dep, intl_dep])
+test('Configuration allocation failures without safety checks', allocation_failure_no_safety_test)
+
+avatar_no_safety_test = executable('test-avatar-ui-no-safety', 'test-avatar-ui.c',
+  '../../src/fe-efl/ui/elaro_ui_util.c',
+  '../../src/engine/elaro_command.c',
+  link_depends : elaro_assets,
+  include_directories : rootinc,
+  c_args : ['-DELARO_TEST_NO_SAFETY_CHECKS'],
+  link_with : frontend_support,
+  dependencies : [elementary_dep, ecore_file_dep])
+test('Gravatar lifecycle without safety checks', python,
+  args : [files('isolated.py'), avatar_no_safety_test], timeout : 15,
+  env : ['ELM_ENGINE=buffer', 'ECORE_NO_SYSTEM_MODULES=1', 'EINA_LOG_LEVEL=0'])
+
+cleanup_failure_test = executable('test-cleanup-failure', 'test-cleanup-failure.c',
+  include_directories : rootinc,
+  link_with : frontend_support,
+  link_depends : elaro_assets,
+  dependencies : [elementary_dep, ecore_file_dep])
+test('Partial notification cleanup without safety checks', python,
+  args : [files('isolated.py'), cleanup_failure_test], timeout : 15,
+  env : ['ELM_ENGINE=buffer', 'ECORE_NO_SYSTEM_MODULES=1', 'EINA_LOG_LEVEL=0'])
+
+themes_test = executable('test-themes', 'test-themes.c',
+  '../../src/fe-efl/ui/elaro_ui_util.c', '../../src/fe-efl/ui/elaro_ui_about.c',
+  '../../src/fe-efl/ui/elaro_ui_connection.c', '../../src/fe-efl/ui/elaro_ui_options.c',
+  '../../src/engine/elaro_command.c',
+  '../../src/fe-efl/ui/elaro_ui_history.c',
+  include_directories : rootinc,
+  c_args : ['-DELARO_BUILD_DIR="' + meson.project_build_root() + '"'],
+  link_with : [frontend_support, config_lib],
+  link_depends : elaro_assets,
+  dependencies : [elementary_dep, ecore_file_dep])
+test('Application themes and live switching', python,
+  args : [files('isolated.py'), themes_test], timeout : 60,
+  env : ['ELARO_TEST_TIMEOUT=55', 'ELM_ENGINE=buffer', 'ECORE_NO_SYSTEM_MODULES=1', 'EINA_LOG_LEVEL=0'])

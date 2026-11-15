@@ -173,6 +173,7 @@ _input_cb(void *data, Ecore_Fd_Handler *handler)
      {
         consumed = newline - eina_strbuf_string_get(backend->input) + 1;
         command = strndup(eina_strbuf_string_get(backend->input), consumed - 1);
+        if (!command) return ECORE_CALLBACK_RENEW;
         _command(backend, command);
         free(command);
         eina_strbuf_remove(backend->input, 0, consumed);
@@ -205,6 +206,7 @@ elaro_music_backend_run(int argc, char **argv)
    evas_object_smart_callback_add(emotion, "playback_started", _ready_cb, &backend);
    evas_object_smart_callback_add(emotion, "decode_stop", _decode_stopped_cb, &backend);
    backend.input = eina_strbuf_new();
+   if (!backend.input) goto done;
    input = ecore_main_fd_handler_add(STDIN_FILENO, ECORE_FD_READ, _input_cb, &backend, NULL, NULL);
    timer = ecore_timer_add(0.25, _report_cb, &backend);
    elm_run();
@@ -212,7 +214,8 @@ elaro_music_backend_run(int argc, char **argv)
    ecore_timer_del(timer);
 
    if (input) ecore_main_fd_handler_del(input);
-   eina_strbuf_free(backend.input);
+done:
+   if (backend.input) eina_strbuf_free(backend.input);
    /* Emotion shutdown may iterate Ecore; keep its canvas alive until decoding is gone. */
    evas_object_smart_callback_del(emotion, "open_done", _ready_cb);
    evas_object_smart_callback_del(emotion, "playback_started", _ready_cb);

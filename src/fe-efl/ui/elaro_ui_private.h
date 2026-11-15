@@ -49,6 +49,9 @@ struct _Elaro_Ui
       unsigned int next_send;
    } dcc;
 
+   char *theme_path;
+   Evas_Object *resize_grips[8];
+   Evas_Object *frame, *app_menu, *theme_buttons[4], *theme_status;
    Evas_Object *background, *content;
    Evas_Object *buffer_panes, *user_panes;
    Ecore_Animator *user_panel_animator;
@@ -65,8 +68,7 @@ struct _Elaro_Ui
       Evas_Object *auto_reconnect, *sasl, *sasl_username, *sasl_password;
       Evas_Object *saved, *connect, *remove;
       Evas_Object *view_box, *connection_view, *options_view, *allow_links, *options_error, *apply,
-          *opacity, *transparent, *notify_private, *font_list, *font_combo, *font_size,
-          *font_preview;
+          *opacity, *transparent, *notify_private, *enable_sounds;
       Eina_Bool options_visible, dirty;
       Elaro_Config *selected;
    } connection;
@@ -78,7 +80,7 @@ struct _Elaro_Ui
       int cursor;
    } completion;
 
-   Eina_List *views;
+   Eina_List *views, *theme_icons;
    Elaro_Ui_Buffer *current;
    Eina_Bool user_scroll_restore;
 };
@@ -87,7 +89,6 @@ struct _Elaro_Ui
 #include "elaro_ui_users.h"
 #include "elaro_ui_avatar.h"
 #include "elaro_ui_connection.h"
-#include "elaro_ui_font.h"
 #include "elaro_ui_options.h"
 #include "elaro_ui_dcc.h"
 #include "elaro_ui_about.h"

@@ -48,7 +48,8 @@ static Evas_Object *find_text_button(Eo *obj, const char *label)
     return found;
 }
 
-static unsigned int notifications;
+static unsigned int notifications, sounds;
+void elaro_ui_notify_sound(Elaro_Ui *ui) { sounds++; }
 static unsigned int freed_users;
 static void (*user_free)(void *, Evas_Object *);
 static void count_user_free(void *data, Evas_Object *obj)
@@ -429,7 +430,8 @@ int main(int argc, char **argv)
         evas_object_show(ui.history);
         for (int pass = 0; pass < 3; pass++) {
             evas_object_resize(ui.win, pass == 1 ? 480 : 700, 300);
-            elaro_ui_font_set(ui.history, pass == 1 ? "Serif" : "Sans", pass == 2 ? 18 : 14);
+            elm_config_font_overlay_set("entry", pass == 1 ? "Serif" : "Sans", pass == 2 ? 18 : 14);
+            elm_config_font_overlay_apply();
             settle_layout();
             if (pass == 0) {
                 int short_width, long_width;
@@ -590,7 +592,8 @@ int main(int argc, char **argv)
             }
             elm_entry_select_none(ui.history);
         }
-        elaro_ui_font_set(ui.history, "Sans", 10);
+        elm_config_font_overlay_unset("entry");
+        elm_config_font_overlay_apply();
         elaro_ui_buffer_select(channel);
         line.text = "<iii> Received while viewing another conversation";
         elaro_ui_buffer_event(&ui, &line);
@@ -643,6 +646,24 @@ int main(int argc, char **argv)
         elm_scroller_region_get(ui.history, NULL, &y, NULL, &h);
         elm_scroller_child_size_get(ui.history, NULL, &content_h);
         assert(y > 0 && y + h < content_h * 0.8);
+        /* Switching away from a scrolled history must return to live output.
+         * Exercise both a completed switch and switches during deferred reflow. */
+        elaro_ui_buffer_select(channel);
+        settle_layout();
+        elaro_ui_buffer_select(server);
+        settle_layout();
+        elm_scroller_region_get(ui.history, NULL, &y, NULL, &h);
+        elm_scroller_child_size_get(ui.history, NULL, &content_h);
+        assert(y + h >= content_h - ELM_SCALE_SIZE(4));
+        elm_scroller_region_show(ui.history, 0, content_h / 3, 1, h);
+        settle_layout();
+        evas_object_resize(ui.win, 260, 300);
+        elaro_ui_buffer_select(channel);
+        elaro_ui_buffer_select(server);
+        for (int i = 0; i < 5; i++) settle_layout();
+        elm_scroller_region_get(ui.history, NULL, &y, NULL, &h);
+        elm_scroller_child_size_get(ui.history, NULL, &content_h);
+        assert(y + h >= content_h - ELM_SCALE_SIZE(4));
         evas_object_smart_callback_del_full(ui.history, "text,set,done", history_loaded, &loaded);
         elaro_ui_buffer_select(channel);
         elm_win_resize_object_del(ui.win, ui.history);
@@ -916,6 +937,16 @@ int main(int argc, char **argv)
         elm_genlist_item_expanded_set(server->item, EINA_TRUE);
         assert(ui.current == other);
         assert(elm_genlist_item_selected_get(other->item));
+        /* Selecting the expanded server replaces its remembered child. */
+        elaro_ui_buffer_select(server);
+        assert(ui.current == server && !server->last_selected);
+        elm_genlist_item_expanded_set(server->item, EINA_FALSE);
+        elaro_ui_buffer_select(other);
+        elm_genlist_item_selected_set(server->item, EINA_TRUE);
+        assert(ui.current == server);
+        elm_genlist_item_expanded_set(server->item, EINA_TRUE);
+        assert(ui.current == server);
+        assert(elm_genlist_item_selected_get(server->item));
         for (unsigned int i = 0; i < 50; i++) {
             elm_genlist_item_expanded_set(server->item, EINA_FALSE);
             assert(!active->item && !hidden->item);
@@ -1022,19 +1053,28 @@ int main(int argc, char **argv)
         elm_genlist_item_selected_set(elaro_ui_buffer_get(&ui, "test", "#active")->item, EINA_TRUE);
         ui.config = &config;
         elaro_ui_buffer_event(&ui, &pm);
-        assert(notifications == 1);
+        assert(notifications == 1 && sounds == 0);
+        config.enable_sounds = 1;
         Elaro_Ui_Buffer *saved = ui.current;
         ui.current = elaro_ui_buffer_get(&ui, "test", "Someone");
         elaro_ui_buffer_event(&ui, &pm);
         assert(notifications == 1);
+        assert(sounds == 0); /* Selected private conversations stay quiet. */
         ui.current = saved;
         config.notify_private_messages = 0;
         elaro_ui_buffer_event(&ui, &pm);
         assert(notifications == 1);
+        assert(sounds == 1); /* Sound works with desktop notifications disabled. */
         config.notify_private_messages = 1;
-        pm.private_message = false;
         elaro_ui_buffer_event(&ui, &pm);
-        assert(notifications == 1);
+        assert(notifications == 2 && sounds == 2);
+        config.enable_sounds = 0;
+        elaro_ui_buffer_event(&ui, &pm);
+        assert(notifications == 3 && sounds == 2);
+        pm.private_message = false;
+        config.enable_sounds = 1;
+        elaro_ui_buffer_event(&ui, &pm);
+        assert(notifications == 3 && sounds == 2);
         ui.config = NULL;
     }
 

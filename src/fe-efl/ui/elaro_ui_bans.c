@@ -40,10 +40,13 @@ static void
 _request(Elaro_Ui_Bans *b, const char *mask)
 {
    Elaro_Engine_Command *c = calloc(1, sizeof(*c));
+   if (!c) goto allocation_failed;
    c->type = mask ? ELARO_ENGINE_UNBAN : ELARO_ENGINE_BANS;
    c->server = strdup(b->server);
    c->target = strdup(b->channel);
    c->text = mask ? strdup(mask) : NULL;
+   if (!c->server || !c->target || (mask && !c->text)) goto allocation_failed;
+
    c->request_id = ++b->app->ban_request_id;
    b->request_id = c->request_id;
    b->loading = EINA_TRUE;
@@ -52,6 +55,10 @@ _request(Elaro_Ui_Bans *b, const char *mask)
    elm_object_text_set(b->status, _("Loading bans…"));
    _controls(b);
    elaro_engine_submit(b->app->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 static void
@@ -103,10 +110,17 @@ _heading_clicked(void *data, Evas_Object *obj, void *info)
      }
    if (!*b->target) return;
    c = calloc(1, sizeof(*c));
+   if (!c) goto allocation_failed;
    c->type = ELARO_ENGINE_USER_INFO;
    c->server = strdup(b->server);
    c->target = strdup(b->target);
+   if (!c->server || !c->target) goto allocation_failed;
+
    elaro_engine_submit(ui->engine, c);
+   return;
+
+allocation_failed:
+   elaro_engine_command_free(c);
 }
 
 /* Use a real button: labels render markup but do not expose anchor clicks. */
@@ -115,13 +129,13 @@ elaro_ui_bans_heading_add(Elaro_Ui *ui, Evas_Object *parent)
 {
    Evas_Object *button = ui->title_button = elm_button_add(parent);
    elm_object_style_set(button, "blank");
-   evas_object_size_hint_weight_set(button, EVAS_HINT_EXPAND, 0);
-   evas_object_size_hint_align_set(button, EVAS_HINT_FILL, 0.5);
+   evas_object_size_hint_weight_set(button, 0, 0);
+   evas_object_size_hint_align_set(button, 0, 0.5);
    evas_object_smart_callback_add(button, "clicked", _heading_clicked, ui);
    ui->title = elm_label_add(button);
-   elm_label_ellipsis_set(ui->title, EINA_TRUE);
-   evas_object_size_hint_weight_set(ui->title, EVAS_HINT_EXPAND, 0);
-   evas_object_size_hint_align_set(ui->title, EVAS_HINT_FILL, 0.5);
+   elm_object_style_set(ui->title, "elaro/title");
+   evas_object_size_hint_weight_set(ui->title, 0, 0);
+   evas_object_size_hint_align_set(ui->title, 0, 0.5);
    evas_object_pass_events_set(ui->title, EINA_TRUE);
    elm_object_content_set(button, ui->title);
    evas_object_show(ui->title);
@@ -135,7 +149,7 @@ elaro_ui_bans_show(void *data, Evas_Object *obj, void *info)
    Elaro_Ui *ui = data;
    Elaro_Ui_Buffer *current = ui->current;
    Elaro_Ui_Bans *b;
-   Evas_Object *bg, *box, *buttons, *close;
+   Evas_Object *box, *buttons, *close;
    char *title;
    if (!current || !current->channel) return;
    if (ui->bans)
@@ -149,23 +163,19 @@ elaro_ui_bans_show(void *data, Evas_Object *obj, void *info)
         elaro_ui_bans_shutdown(ui);
      }
    b = ui->bans = calloc(1, sizeof(*b));
+   if (!b) return;
    b->app = ui;
    b->available = EINA_TRUE;
    b->server = strdup(current->server);
    b->channel = strdup(current->target);
+   if (!b->server || !b->channel) goto allocation_failed;
    b->win = elm_win_add(ui->win, "elaro-channel-bans", ELM_WIN_DIALOG_BASIC);
    title = elaro_string_printf(_("Bans — %s — %s"), b->server, b->channel);
    elm_win_title_set(b->win, title);
    free(title);
    elm_win_autodel_set(b->win, EINA_TRUE);
-   bg = elm_bg_add(b->win);
-   elaro_ui_expand(bg);
-   elm_win_resize_object_add(b->win, bg);
-   evas_object_show(bg);
-   box = elm_box_add(b->win);
-   elaro_ui_expand(box);
-   elm_box_padding_set(box, 0, ELM_SCALE_SIZE(8));
-   elm_win_resize_object_add(b->win, box);
+   box = elaro_ui_window_content_add(b->win);
+   elaro_ui_box_padding_set(box, 0, 8);
    evas_object_show(box);
    b->status = elm_label_add(box);
    evas_object_size_hint_align_set(b->status, EVAS_HINT_FILL, 0.5);
@@ -205,6 +215,13 @@ elaro_ui_bans_show(void *data, Evas_Object *obj, void *info)
    evas_object_resize(b->win, ELM_SCALE_SIZE(540), ELM_SCALE_SIZE(380));
    evas_object_show(b->win);
    _request(b, NULL);
+   return;
+
+allocation_failed:
+   free(b->server);
+   free(b->channel);
+   free(b);
+   ui->bans = NULL;
 }
 
 void
@@ -226,8 +243,16 @@ elaro_ui_bans_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
       return;
    if (e->type == ELARO_ENGINE_BAN_ENTRY)
      {
-        Elm_Object_Item *item = elm_genlist_item_append(b->list, b->item_class, strdup(e->text),
-                                                        NULL, ELM_GENLIST_ITEM_NONE, NULL, NULL);
+        char *mask = strdup(e->text);
+        Elm_Object_Item *item;
+        if (!mask) return;
+        item = elm_genlist_item_append(b->list, b->item_class, mask,
+                                      NULL, ELM_GENLIST_ITEM_NONE, NULL, NULL);
+        if (!item)
+          {
+             free(mask);
+             return;
+          }
         safe = elm_entry_utf8_to_markup(e->text);
         elm_object_item_tooltip_text_set(item, safe);
         free(safe);

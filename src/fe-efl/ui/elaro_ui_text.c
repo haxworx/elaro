@@ -57,6 +57,7 @@ _append_escaped(Eina_Strbuf *out, const char *text, ssize_t length)
    char *part, *safe;
 
    part = length < 0 ? strdup(text) : strndup(text, length);
+   if (!part) return;
    safe = elm_entry_utf8_to_markup(part);
    eina_strbuf_append(out, safe);
    free(safe);
@@ -110,8 +111,10 @@ _append_text(Eina_Strbuf *out, Eina_Strbuf *text)
              end--;
           }
         url = strndup(start, end - start);
+        if (!url) return;
         /* Anchor names are opaque tokens; encode URLs before placing them in markup. */
         attribute = elaro_uri_escape(url);
+        if (!attribute) goto allocation_failed;
         eina_strbuf_append_printf(out, "<a href=%s:%s>",
                                   elaro_ui_text_image_url_check(url)   ? "image"
                                   : elaro_ui_text_audio_url_check(url) ? "audio"
@@ -124,6 +127,10 @@ _append_text(Eina_Strbuf *out, Eina_Strbuf *text)
         cursor = end;
      }
    eina_strbuf_reset(text);
+   return;
+
+allocation_failed:
+   free(url);
 }
 
 static void
@@ -166,7 +173,9 @@ elaro_ui_text_markup(const char *text)
    unsigned char c;
 
    out = eina_strbuf_new();
+   if (!out) return NULL;
    run = eina_strbuf_new();
+   if (!run) goto allocation_failed;
    flags = 0;
 
    for (p = (const unsigned char *)text; *p;)
@@ -203,4 +212,8 @@ elaro_ui_text_markup(const char *text)
    eina_strbuf_free(run);
 
    return eina_strbuf_release(out);
+
+allocation_failed:
+   eina_strbuf_free(out);
+   return NULL;
 }

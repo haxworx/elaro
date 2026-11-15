@@ -87,6 +87,8 @@ install_data('data/elaro.desktop',
 
 install_data('data/elaro.png',
   install_dir : get_option('datadir') / 'icons' / 'hicolor' / '512x512' / 'apps')
+install_data('data/images/elaro.svg',
+  install_dir : get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps')
 install_data('data/images/elaro-128.png', rename : 'elaro.png',
   install_dir : get_option('datadir') / 'icons' / 'hicolor' / '128x128' / 'apps')
 

@@ -15,13 +15,15 @@ int main(void)
     Eina_Error error = 0;
     Elaro_Config *c = elaro_config_load(&error);
     g_assert_cmpint(error, ==, 0);
-    g_assert_cmpstr(c->chat_font, ==, "Sans");
-    g_assert_cmpint(c->chat_font_size, ==, 11);
     g_assert_false(c->window_position_set);
+    g_assert_true(c->window_size_default);
+    g_assert_cmpint(c->window_width, ==, 1280);
+    g_assert_cmpint(c->window_height, ==, 900);
     g_assert_cmpfloat(c->buffer_panel_ratio, ==, 0.20);
     g_assert_cmpfloat(c->user_panel_ratio, ==, 0.18);
     g_assert_false(c->auto_reconnect);
     g_assert_false(c->notify_private_messages);
+    g_assert_false(c->enable_sounds);
     g_assert_false(c->always_allow_external_links);
     g_assert_cmpstr(c->host, ==, "irc.libera.chat");
     g_free(c->nick); c->nick = g_strdup("SavedNick");
@@ -37,9 +39,9 @@ int main(void)
     c->window_width = 1280; c->window_height = 800;
     c->window_x = -320; c->window_y = 120; c->window_position_set = TRUE;
     c->buffer_panel_ratio = 0.27; c->user_panel_ratio = 0.22;
-    free(c->chat_font); c->chat_font = strdup("DejaVu Sans Mono:style=Book");
-    c->chat_font_size = 19;
     c->notify_private_messages = TRUE;
+    c->enable_sounds = TRUE;
+    c->theme = 3;
     c->always_allow_external_links = TRUE;
     c->auto_reconnect = TRUE;
     c->sasl = TRUE;
@@ -56,9 +58,9 @@ int main(void)
     c = elaro_config_load(&error);
     g_assert_cmpint(error, ==, 0);
     g_assert_cmpint(c->version, ==, ELARO_CONFIG_VERSION);
-    g_assert_cmpstr(c->chat_font, ==, "DejaVu Sans Mono:style=Book");
-    g_assert_cmpint(c->chat_font_size, ==, 19);
     g_assert_true(c->notify_private_messages);
+    g_assert_true(c->enable_sounds);
+    g_assert_cmpint(c->theme, ==, 3);
     g_assert_true(c->always_allow_external_links);
     g_assert_cmpuint(eina_list_count(c->connections), ==, 2);
     Elaro_Config *first = eina_list_data_get(c->connections);
@@ -78,6 +80,7 @@ int main(void)
     g_assert_cmpstr(c->password, ==, "server<&password>");
     g_assert_cmpint(c->window_width, ==, 1280);
     g_assert_cmpint(c->window_height, ==, 800);
+    g_assert_false(c->window_size_default);
     g_assert_true(c->window_position_set);
     g_assert_cmpint(c->window_x, ==, -320);
     g_assert_cmpint(c->window_y, ==, 120);
@@ -118,105 +121,40 @@ int main(void)
     g_assert_cmpint(error, ==, 0);
     g_assert_null(c->connections);
     elaro_config_free(c);
-    /* Read the original single-connection schema and migrate it exactly once. */
+    /* Unsupported schemas fall back to defaults instead of being migrated. */
     Eet_Data_Descriptor_Class klass;
     EET_EINA_STREAM_DATA_DESCRIPTOR_CLASS_SET(&klass, Elaro_Config);
-    Eet_Data_Descriptor *legacy = eet_data_descriptor_stream_new(&klass);
-#define LEGACY(field, type) EET_DATA_DESCRIPTOR_ADD_BASIC(legacy, Elaro_Config, #field, field, type)
-    LEGACY(version, EET_T_INT);
-    LEGACY(port, EET_T_INT);
-    LEGACY(tls, EET_T_INT);
-    LEGACY(sasl, EET_T_INT);
-    LEGACY(host, EET_T_STRING);
-    LEGACY(nick, EET_T_STRING);
-    LEGACY(password, EET_T_STRING);
-    LEGACY(channels, EET_T_STRING);
-    LEGACY(sasl_username, EET_T_STRING);
-    LEGACY(sasl_password, EET_T_STRING);
-#undef LEGACY
-    Elaro_Config old = { .version = 1, .port = 6697, .tls = 1,
-        .host = "legacy.example.org", .nick = "LegacyNick", .password = "",
-        .channels = "#legacy", .sasl_username = "", .sasl_password = "" };
-    Eet_File *file = eet_open(path, EET_FILE_MODE_WRITE);
-    g_assert_nonnull(file);
-    g_assert_cmpint(eet_data_write(file, legacy, "connection", &old, EET_COMPRESSION_DEFAULT), >, 0);
-    g_assert_cmpint(eet_close(file), ==, EET_ERROR_NONE);
-
-    c = elaro_config_load(&error);
-    g_assert_cmpint(error, ==, 0);
-    g_assert_cmpuint(eina_list_count(c->connections), ==, 1);
-    g_assert_false(c->always_allow_external_links);
-    first = eina_list_data_get(c->connections);
-    g_assert_cmpstr(first->host, ==, "legacy.example.org");
-    g_assert_cmpstr(first->username, ==, g_get_user_name());
-    g_assert_cmpstr(first->realname, ==, "elaro user");
-    g_assert_cmpstr(first->email, ==, "");
-    g_assert_cmpstr(c->username, ==, g_get_user_name());
-    g_assert_cmpstr(first->channels, ==, "#legacy");
-    g_assert_true(elaro_config_save(c, &error));
-    g_assert_cmpint(error, ==, 0);
-    elaro_config_free(c);
-    c = elaro_config_load(&error);
-    g_assert_cmpint(error, ==, 0);
-    g_assert_cmpuint(eina_list_count(c->connections), ==, 1);
-    elaro_config_free(c);
-    /* Version 2 lacked the external-link preference: retain fields and ask by default. */
-    old.version = 2;
-    file = eet_open(path, EET_FILE_MODE_WRITE);
-    g_assert_nonnull(file);
-    g_assert_cmpint(eet_data_write(file, legacy, "connection", &old, EET_COMPRESSION_DEFAULT), >, 0);
-    g_assert_cmpint(eet_close(file), ==, EET_ERROR_NONE);
-    eet_data_descriptor_free(legacy);
-    c = elaro_config_load(&error);
-    g_assert_cmpint(error, ==, 0);
-    g_assert_cmpint(c->version, ==, ELARO_CONFIG_VERSION);
-    g_assert_false(c->always_allow_external_links);
-    g_assert_cmpstr(c->host, ==, "legacy.example.org");
-    elaro_config_free(c);
-    /* Version 4 has opacity but no transparency toggle. */
-    EET_EINA_STREAM_DATA_DESCRIPTOR_CLASS_SET(&klass, Elaro_Config);
-    legacy = eet_data_descriptor_stream_new(&klass);
-#define V4(field, type) EET_DATA_DESCRIPTOR_ADD_BASIC(legacy, Elaro_Config, #field, field, type)
-    V4(version, EET_T_INT); V4(port, EET_T_INT); V4(host, EET_T_STRING);
-    V4(nick, EET_T_STRING); V4(password, EET_T_STRING); V4(channels, EET_T_STRING);
-    V4(sasl_username, EET_T_STRING); V4(sasl_password, EET_T_STRING);
-    V4(window_opacity, EET_T_INT);
-#undef V4
-    old.version = 4;
-    old.window_opacity = 60;
-    file = eet_open(path, EET_FILE_MODE_WRITE);
-    g_assert_nonnull(file);
-    g_assert_cmpint(eet_data_write(file, legacy, "connection", &old, EET_COMPRESSION_DEFAULT), >, 0);
-    g_assert_cmpint(eet_close(file), ==, EET_ERROR_NONE);
-    eet_data_descriptor_free(legacy);
-    c = elaro_config_load(&error);
-    g_assert_cmpint(error, ==, 0);
-    g_assert_false(c->window_transparent);
-    g_assert_cmpint(c->window_opacity, ==, 60);
-    g_assert_false(c->window_position_set);
-    g_assert_cmpfloat(c->buffer_panel_ratio, ==, 0.20);
-    g_assert_cmpfloat(c->user_panel_ratio, ==, 0.18);
-    elaro_config_free(c);
-    /* Version 3 has no opacity: migrate to fully opaque. */
-    EET_EINA_STREAM_DATA_DESCRIPTOR_CLASS_SET(&klass, Elaro_Config);
-    legacy = eet_data_descriptor_stream_new(&klass);
-#define V3(field, type) EET_DATA_DESCRIPTOR_ADD_BASIC(legacy, Elaro_Config, #field, field, type)
-    V3(version, EET_T_INT); V3(port, EET_T_INT); V3(host, EET_T_STRING);
-    V3(nick, EET_T_STRING); V3(password, EET_T_STRING); V3(channels, EET_T_STRING);
-    V3(sasl_username, EET_T_STRING); V3(sasl_password, EET_T_STRING);
-    V3(always_allow_external_links, EET_T_INT);
-#undef V3
-    old.version = 3;
-    old.always_allow_external_links = TRUE;
-    file = eet_open(path, EET_FILE_MODE_WRITE);
-    g_assert_nonnull(file);
-    g_assert_cmpint(eet_data_write(file, legacy, "connection", &old, EET_COMPRESSION_DEFAULT), >, 0);
-    g_assert_cmpint(eet_close(file), ==, EET_ERROR_NONE);
-    eet_data_descriptor_free(legacy);
-    c = elaro_config_load(&error);
-    g_assert_cmpint(error, ==, 0);
-    g_assert_cmpint(c->window_opacity, ==, 100);
-    g_assert_true(c->always_allow_external_links);
+    Eet_Data_Descriptor *unsupported = eet_data_descriptor_stream_new(&klass);
+#define FIELD(field, type) EET_DATA_DESCRIPTOR_ADD_BASIC(unsupported, Elaro_Config, #field, field, type)
+    FIELD(version, EET_T_INT);
+    FIELD(port, EET_T_INT);
+    FIELD(host, EET_T_STRING);
+    FIELD(nick, EET_T_STRING);
+    FIELD(password, EET_T_STRING);
+    FIELD(channels, EET_T_STRING);
+    FIELD(sasl_username, EET_T_STRING);
+    FIELD(sasl_password, EET_T_STRING);
+#undef FIELD
+    Elaro_Config old = { .port = 6697, .host = "old.example.org", .nick = "SavedNick",
+        .password = "", .channels = "", .sasl_username = "", .sasl_password = "" };
+    const int versions[] = { 1, ELARO_CONFIG_VERSION - 1, ELARO_CONFIG_VERSION + 1 };
+    for (unsigned int i = 0; i < G_N_ELEMENTS(versions); i++) {
+        old.version = versions[i];
+        Eet_File *file = eet_open(path, EET_FILE_MODE_WRITE);
+        g_assert_nonnull(file);
+        g_assert_cmpint(eet_data_write(file, unsupported, "connection", &old,
+                                      EET_COMPRESSION_DEFAULT), >, 0);
+        g_assert_cmpint(eet_close(file), ==, EET_ERROR_NONE);
+        c = elaro_config_load(&error);
+        g_assert_cmpint(error, !=, 0);
+        g_assert_cmpint(c->version, ==, ELARO_CONFIG_VERSION);
+        g_assert_cmpstr(c->host, ==, "irc.libera.chat");
+        g_assert_false(c->enable_sounds);
+        g_assert_null(c->connections);
+        elaro_config_free(c);
+    }
+    eet_data_descriptor_free(unsupported);
+    c = elaro_config_load(NULL);
     c->window_opacity = 0;
     g_assert_true(elaro_config_save(c, &error));
     g_assert_cmpint(error, ==, 0);

@@ -20,7 +20,7 @@ _options_group_add(Evas_Object *parent, const char *title)
    evas_object_size_hint_align_set(frame, EVAS_HINT_FILL, 0);
    box = elm_box_add(frame);
    elm_box_align_set(box, 0, 0);
-   elm_box_padding_set(box, 0, ELM_SCALE_SIZE(6));
+   elaro_ui_box_padding_set(box, 0, 6);
    elm_object_content_set(frame, box);
    elm_box_pack_end(parent, frame);
    evas_object_show(box);
@@ -36,11 +36,8 @@ elaro_ui_options_save(Elaro_Ui *ui)
    char *safe;
 
    candidate = *ui->config;
-   candidate.chat_font
-       = elm_object_item_data_get(elm_genlist_selected_item_get(ui->connection.font_list));
-   if (!candidate.chat_font) candidate.chat_font = ui->config->chat_font;
-   candidate.chat_font_size = (int)(elm_slider_value_get(ui->connection.font_size) + 0.5);
    candidate.notify_private_messages = elm_check_state_get(ui->connection.notify_private);
+   candidate.enable_sounds = elm_check_state_get(ui->connection.enable_sounds);
    candidate.window_transparent = elm_check_state_get(ui->connection.transparent);
    candidate.window_opacity = (int)(elm_slider_value_get(ui->connection.opacity) + 0.5);
    candidate.always_allow_external_links = elm_check_state_get(ui->connection.allow_links);
@@ -54,12 +51,8 @@ elaro_ui_options_save(Elaro_Ui *ui)
 
         return;
      }
-   candidate.chat_font = strdup(candidate.chat_font);
-   free(ui->config->chat_font);
-   ui->config->chat_font = candidate.chat_font;
-   ui->config->chat_font_size = candidate.chat_font_size;
-   elaro_ui_font_apply(ui);
    ui->config->notify_private_messages = candidate.notify_private_messages;
+   ui->config->enable_sounds = candidate.enable_sounds;
    ui->config->always_allow_external_links = candidate.always_allow_external_links;
    ui->config->window_transparent = candidate.window_transparent;
    ui->config->window_opacity = candidate.window_opacity;
@@ -85,8 +78,6 @@ elaro_ui_options_add(Elaro_Ui *ui, Evas_Object *parent)
    elm_object_content_set(ui->connection.options_view, options_box);
    evas_object_show(options_box);
 
-   options = _options_group_add(options_box, _("Chat font"));
-   elaro_ui_font_options_add(ui, options);
    options = _options_group_add(options_box, _("Links"));
    ui->connection.allow_links = elm_check_add(options);
    elm_object_text_set(ui->connection.allow_links, _("Always allow external links"));
@@ -109,6 +100,16 @@ elaro_ui_options_add(Elaro_Ui *ui, Evas_Object *parent)
    evas_object_size_hint_align_set(ui->connection.notify_private, 0, 0.5);
    elm_box_pack_end(options, ui->connection.notify_private);
    evas_object_show(ui->connection.notify_private);
+
+   ui->connection.enable_sounds = elm_check_add(options);
+   elm_object_text_set(ui->connection.enable_sounds, _("Enable sounds"));
+   elm_object_tooltip_text_set(ui->connection.enable_sounds,
+       _("Enable sounds"));
+   elm_check_state_set(ui->connection.enable_sounds, ui->config->enable_sounds);
+   evas_object_size_hint_weight_set(ui->connection.enable_sounds, EVAS_HINT_EXPAND, 0);
+   evas_object_size_hint_align_set(ui->connection.enable_sounds, 0, 0.5);
+   elm_box_pack_end(options, ui->connection.enable_sounds);
+   evas_object_show(ui->connection.enable_sounds);
 
    options = _options_group_add(options_box, _("Appearance"));
    ui->connection.transparent = elm_check_add(options);
@@ -137,7 +138,7 @@ elaro_ui_options_add(Elaro_Ui *ui, Evas_Object *parent)
 
    ui->connection.options_error = elm_label_add(options_box);
    elm_label_line_wrap_set(ui->connection.options_error, ELM_WRAP_WORD);
-   elm_label_wrap_width_set(ui->connection.options_error, ELM_SCALE_SIZE(340));
+   elaro_ui_wrap_width_set(ui->connection.options_error, 340);
    elm_box_pack_end(options_box, ui->connection.options_error);
    evas_object_show(ui->connection.options_error);
 }

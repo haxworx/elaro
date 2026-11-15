@@ -3,6 +3,9 @@
 #include <utime.h>
 #include <pthread.h>
 #include <unistd.h>
+#ifdef ELARO_TEST_NO_SAFETY_CHECKS
+#include "no-safety-checks.h"
+#endif
 
 /* Deterministic downloads: never contact Gravatar or send a real email. */
 typedef struct

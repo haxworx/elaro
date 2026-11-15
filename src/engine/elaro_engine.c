@@ -293,24 +293,6 @@ _whois_presence_end(IRC_SERVER_REC *server, const char *data)
    g_free(params);
 }
 
-static void
-_command_free(Elaro_Engine_Command *c)
-{
-   g_free(c->server);
-   g_free(c->target);
-   g_free(c->text);
-   g_free(c->host);
-   g_free(c->nick);
-   g_free(c->username);
-   g_free(c->realname);
-   g_free(c->email);
-   g_free(c->password);
-   g_free(c->channels);
-   g_free(c->sasl_username);
-   g_free(c->sasl_password);
-   g_free(c);
-}
-
 static Connection *
 _connection_find(SERVER_CONNECT_REC *conn)
 {
@@ -1208,7 +1190,7 @@ _dispatch(gint fd, GIOCondition condition, gpointer data)
              g_main_loop_quit(e->loop);
              break;
           }
-        _command_free(c);
+        elaro_engine_command_free(c);
 
         if (stop) return G_SOURCE_REMOVE;
      }
@@ -1424,7 +1406,7 @@ elaro_engine_start(const char *binary)
         g_free(e);
         return NULL;
      }
-   e->commands = g_async_queue_new_full((GDestroyNotify)_command_free);
+   e->commands = g_async_queue_new_full((GDestroyNotify)elaro_engine_command_free);
    e->events = g_async_queue_new_full((GDestroyNotify)elaro_engine_event_free);
    e->binary = g_strdup(binary);
    e->thread = g_thread_new("irc-engine", _run, e);

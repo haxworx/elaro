@@ -17,7 +17,7 @@ typedef struct
 static void
 _external_open(Elaro_Ui *ui, char *url)
 {
-   Evas_Object *popup, *close;
+   Evas_Object *popup;
    Ecore_Exe *process;
    char *quoted, *command, *launcher, *executable;
 
@@ -41,10 +41,7 @@ _external_open(Elaro_Ui *ui, char *url)
         popup = elm_popup_add(ui->win);
         elm_object_part_text_set(popup, "title,text", _("Could not open link"));
         elm_object_text_set(popup, _("Could not launch the default browser."));
-        close = elm_button_add(popup);
-        elm_object_text_set(close, _("Close"));
-        evas_object_smart_callback_add(close, "clicked", _link_error_close_cb, popup);
-        elm_object_part_content_set(popup, "button1", close);
+        elaro_ui_popup_close_button_add(ui, popup, _link_error_close_cb, popup);
         evas_object_smart_callback_add(popup, "dismissed", _link_error_close_cb, popup);
         evas_object_show(popup);
      }
@@ -103,19 +100,21 @@ _external_confirm(Elaro_Ui *ui, const char *url)
         return;
      }
    link = calloc(1, sizeof(External_Link));
+   if (!link) return;
    link->ui = ui;
    link->url = strdup(url);
 
+   if (!link->url) goto allocation_failed;
    link->popup = elm_popup_add(ui->win);
    elm_object_part_text_set(link->popup, "title,text", _("Open link in browser?"));
 
    box = elm_box_add(link->popup);
-   elm_box_padding_set(box, 0, ELM_SCALE_SIZE(12));
+   elaro_ui_box_padding_set(box, 0, 12);
 
    description = elm_label_add(box);
    elm_object_text_set(description, _("This link will open in your default browser."));
    elm_label_line_wrap_set(description, ELM_WRAP_WORD);
-   elm_label_wrap_width_set(description, ELM_SCALE_SIZE(360));
+   elaro_ui_wrap_width_set(description, 360);
    evas_object_size_hint_weight_set(description, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(description, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, description);
@@ -127,7 +126,7 @@ _external_confirm(Elaro_Ui *ui, const char *url)
    free(safe);
    /* Long paths and query strings must fit without hiding the destination. */
    elm_label_line_wrap_set(address, ELM_WRAP_CHAR);
-   elm_label_wrap_width_set(address, ELM_SCALE_SIZE(360));
+   elaro_ui_wrap_width_set(address, 360);
    evas_object_size_hint_weight_set(address, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(address, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, address);
@@ -142,7 +141,7 @@ _external_confirm(Elaro_Ui *ui, const char *url)
 
    link->error = elm_label_add(box);
    elm_label_line_wrap_set(link->error, ELM_WRAP_WORD);
-   elm_label_wrap_width_set(link->error, ELM_SCALE_SIZE(360));
+   elaro_ui_wrap_width_set(link->error, 360);
    evas_object_size_hint_weight_set(link->error, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(link->error, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, link->error);
@@ -158,9 +157,14 @@ _external_confirm(Elaro_Ui *ui, const char *url)
    elm_object_text_set(cancel, _("Cancel"));
    evas_object_smart_callback_add(cancel, "clicked", _link_error_close_cb, link->popup);
    elm_object_part_content_set(link->popup, "button2", cancel);
+   elaro_ui_popup_close_button_add(ui, link->popup, _link_error_close_cb, link->popup);
    evas_object_smart_callback_add(link->popup, "dismissed", _link_error_close_cb, link->popup);
    evas_object_event_callback_add(link->popup, EVAS_CALLBACK_DEL, _external_deleted_cb, link);
    evas_object_show(link->popup);
+   return;
+
+allocation_failed:
+   free(link);
 }
 
 void

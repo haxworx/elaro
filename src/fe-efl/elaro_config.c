@@ -27,6 +27,7 @@ _descriptor_new(Eet_Data_Descriptor *connection)
    klass.func.str_alloc = strdup;
    klass.func.str_free = _string_free;
    d = eet_data_descriptor_stream_new(&klass);
+   if (!d) return NULL;
 #define FIELD(name, type) EET_DATA_DESCRIPTOR_ADD_BASIC(d, Elaro_Config, #name, name, type)
    FIELD(window_width, EET_T_INT);
    FIELD(window_height, EET_T_INT);
@@ -35,6 +36,8 @@ _descriptor_new(Eet_Data_Descriptor *connection)
      {
         FIELD(always_allow_external_links, EET_T_INT);
         FIELD(notify_private_messages, EET_T_INT);
+        FIELD(enable_sounds, EET_T_INT);
+        FIELD(theme, EET_T_INT);
         FIELD(window_x, EET_T_INT);
         FIELD(window_y, EET_T_INT);
         FIELD(window_position_set, EET_T_INT);
@@ -42,8 +45,6 @@ _descriptor_new(Eet_Data_Descriptor *connection)
         FIELD(user_panel_ratio, EET_T_DOUBLE);
         FIELD(window_opacity, EET_T_INT);
         FIELD(window_transparent, EET_T_INT);
-        FIELD(chat_font, EET_T_STRING);
-        FIELD(chat_font_size, EET_T_INT);
      }
    FIELD(version, EET_T_INT);
    FIELD(port, EET_T_INT);
@@ -73,13 +74,27 @@ elaro_config_connection_copy(const Elaro_Config *c)
    Elaro_Config *copy;
 
    copy = calloc(1, sizeof(Elaro_Config));
+   if (!copy) return NULL;
    *copy = *c;
    copy->connections = NULL;
-   copy->chat_font = NULL;
-   copy->chat_font_size = 0;
    copy->always_allow_external_links = EINA_FALSE;
    copy->notify_private_messages = EINA_FALSE;
-#define COPY(field) copy->field = c->field ? strdup(c->field) : NULL
+   copy->enable_sounds = EINA_FALSE;
+#define CLEAR(field) copy->field = NULL
+   CLEAR(host);
+   CLEAR(nick);
+   CLEAR(username);
+   CLEAR(realname);
+   CLEAR(email);
+   CLEAR(password);
+   CLEAR(channels);
+   CLEAR(sasl_username);
+   CLEAR(sasl_password);
+#undef CLEAR
+#define COPY(field) do { \
+   copy->field = c->field ? strdup(c->field) : NULL; \
+   if (c->field && !copy->field) goto allocation_failed; \
+} while (0)
    COPY(host);
    COPY(nick);
    COPY(username);
@@ -92,6 +107,10 @@ elaro_config_connection_copy(const Elaro_Config *c)
 #undef COPY
 
    return copy;
+
+allocation_failed:
+   elaro_config_free(copy);
+   return NULL;
 }
 
 void
@@ -103,7 +122,6 @@ elaro_config_free(Elaro_Config *c)
 
    EINA_LIST_FREE (c->connections, connection)
       elaro_config_free(connection);
-   free(c->chat_font);
    free(c->host);
    free(c->nick);
    free(c->username);
@@ -122,9 +140,8 @@ _defaults(void)
    Elaro_Config *c;
 
    c = calloc(1, sizeof(Elaro_Config));
+   if (!c) return NULL;
    c->version = ELARO_CONFIG_VERSION;
-   c->chat_font = strdup("Sans");
-   c->chat_font_size = 11;
    c->buffer_panel_ratio = 0.20;
    c->user_panel_ratio = 0.18;
    c->window_opacity = ELARO_OPACITY_MAX;
@@ -140,7 +157,14 @@ _defaults(void)
    c->sasl_username = strdup("");
    c->sasl_password = strdup("");
 
+   if (!c->host || !c->nick || !c->username || !c->realname || !c->email
+       || !c->password || !c->channels || !c->sasl_username || !c->sasl_password)
+      goto allocation_failed;
    return c;
+
+allocation_failed:
+   elaro_config_free(c);
+   return NULL;
 }
 
 static void
@@ -160,8 +184,10 @@ elaro_config_load(Eina_Error *error)
 
    if (error) *error = 0;
    dir = elaro_config_dir_get();
+   if (!dir) return NULL;
    path = elaro_path_join(dir, "config.eet", NULL);
    free(dir);
+   if (!path) return NULL;
    c = NULL;
 
    if (ecore_file_exists(path))
@@ -171,14 +197,14 @@ elaro_config_load(Eina_Error *error)
         if (file)
           {
              connection = _descriptor_new(NULL);
-             d = _descriptor_new(connection);
-             c = eet_data_read(file, d, "connection");
+             d = connection ? _descriptor_new(connection) : NULL;
+             if (d) c = eet_data_read(file, d, "connection");
              eet_close(file);
              eet_data_descriptor_free(d);
              eet_data_descriptor_free(connection);
           }
 
-        if (!c || (c->version < 1 || c->version > ELARO_CONFIG_VERSION) || c->port < 1
+        if (!c || c->version != ELARO_CONFIG_VERSION || c->port < 1
             || c->port > 65535 || !c->host || !c->nick || !c->password || !c->channels
             || !c->sasl_username || !c->sasl_password)
           {
@@ -190,40 +216,24 @@ elaro_config_load(Eina_Error *error)
    free(path);
 
    if (!c) c = _defaults();
+   if (!c) return NULL;
 
    if (!c->username) c->username = elaro_user_name_get();
    if (!c->realname) c->realname = strdup("elaro user");
    if (!c->email) c->email = strdup("");
 
-   if (c->version == 1 && *c->nick)
-      c->connections = eina_list_append(c->connections, elaro_config_connection_copy(c));
-
-   if (c->version < 3) c->always_allow_external_links = EINA_FALSE;
-
-   if (c->version < 5) c->window_transparent = EINA_FALSE;
-
-   if (c->version < 4) c->window_opacity = ELARO_OPACITY_MAX;
    c->window_opacity = ELARO_CLAMP(c->window_opacity, ELARO_OPACITY_MIN, ELARO_OPACITY_MAX);
-   if (!c->chat_font) c->chat_font = strdup("Sans");
-   if (c->version < 8) c->chat_font_size = 11;
-   c->chat_font_size = ELARO_CLAMP(c->chat_font_size, 8, 36);
-   if (c->version < 10)
-     {
-        c->window_position_set = EINA_FALSE;
-        c->buffer_panel_ratio = 0.20;
-        c->user_panel_ratio = 0.18;
-     }
+   if (!c->username || !c->realname || !c->email) goto allocation_failed;
    if (!isfinite(c->buffer_panel_ratio) || c->buffer_panel_ratio < 0 || c->buffer_panel_ratio > 1)
       c->buffer_panel_ratio = 0.20;
    if (!isfinite(c->user_panel_ratio) || c->user_panel_ratio < 0 || c->user_panel_ratio > 1)
       c->user_panel_ratio = 0.18;
-   c->version = ELARO_CONFIG_VERSION;
-
    EINA_LIST_FOREACH (c->connections, node, saved)
      {
         if (!saved->username) saved->username = elaro_user_name_get();
         if (!saved->realname) saved->realname = strdup("elaro user");
         if (!saved->email) saved->email = strdup("");
+        if (!saved->username || !saved->realname || !saved->email) goto allocation_failed;
      }
    EINA_LIST_FOREACH_SAFE (c->connections, node, next, saved)
 
@@ -235,17 +245,22 @@ elaro_config_load(Eina_Error *error)
            elaro_config_free(saved);
         }
 
-   if (c->window_width < 320) c->window_width = 1100;
+   c->window_size_default = c->window_width < 320 || c->window_height < 240;
+   if (c->window_width < 320) c->window_width = 1280;
 
-   if (c->window_height < 240) c->window_height = 720;
+   if (c->window_height < 240) c->window_height = 900;
 
    return c;
+
+allocation_failed:
+   elaro_config_free(c);
+   return NULL;
 }
 
 Eina_Bool
 elaro_config_save(const Elaro_Config *c, Eina_Error *error)
 {
-   char *dir, *path, *temp, *parent;
+   char *dir, *path = NULL, *temp = NULL, *parent;
    Eina_Bool ok;
    int fd, written;
    Eet_File *file;
@@ -254,12 +269,15 @@ elaro_config_save(const Elaro_Config *c, Eina_Error *error)
    Eet_Error result;
 
    if (error) *error = 0;
+   ok = EINA_FALSE;
    dir = elaro_config_dir_get();
+   if (!dir) goto failure;
    path = elaro_path_join(dir, "config.eet", NULL);
    temp = elaro_path_join(dir, ".config.eet.XXXXXX", NULL);
-   ok = EINA_FALSE;
+   if (!path || !temp) goto failure;
 
    parent = ecore_file_dir_get(dir);
+   if (!parent) goto failure;
    ok = ecore_file_mkpath(parent);
    free(parent);
    if (!ok) goto failure;
@@ -273,7 +291,13 @@ elaro_config_save(const Elaro_Config *c, Eina_Error *error)
 
    if (!file) goto failure;
    connection = _descriptor_new(NULL);
-   d = _descriptor_new(connection);
+   d = connection ? _descriptor_new(connection) : NULL;
+   if (!d)
+     {
+        eet_close(file);
+        eet_data_descriptor_free(connection);
+        goto failure;
+     }
    stored = *c;
    stored.version = ELARO_CONFIG_VERSION;
    if (!isfinite(stored.buffer_panel_ratio) || stored.buffer_panel_ratio < 0
@@ -296,7 +320,7 @@ elaro_config_save(const Elaro_Config *c, Eina_Error *error)
 failure:
    _config_error(error,
                  _("Could not save connection settings in the Elaro configuration directory."));
-   unlink(temp);
+   if (temp) unlink(temp);
 done:
    free(dir);
    free(path);

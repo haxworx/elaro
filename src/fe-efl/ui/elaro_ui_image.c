@@ -88,9 +88,9 @@ elaro_ui_image_preview(Elaro_Ui *ui, const char *url)
    size = evas_object_rectangle_add(evas_object_evas_get(viewport));
    evas_object_color_set(size, 0, 0, 0, 0);
    evas_object_pass_events_set(size, EINA_TRUE);
-   evas_object_size_hint_min_set(size,
-                                 MIN(ELM_SCALE_SIZE(520), MAX(100, width - ELM_SCALE_SIZE(136))),
-                                 MIN(ELM_SCALE_SIZE(360), MAX(100, height - ELM_SCALE_SIZE(300))));
+   elaro_ui_size_min_set(size,
+                                 MIN(520, MAX(100, width - 136)),
+                                 MIN(360, MAX(100, height - 300)));
    elm_table_pack(viewport, size, 0, 0, 1, 1);
    evas_object_show(size);
 
@@ -129,8 +129,7 @@ elaro_ui_image_preview(Elaro_Ui *ui, const char *url)
    evas_object_smart_callback_add(image, "download,error", _image_error_cb, status);
    evas_object_smart_callback_add(image, "load,error", _image_error_cb, status);
    evas_object_smart_callback_add(image, "load,ready", _image_done_cb, status);
-   elm_object_part_content_set(ui->preview, "button1",
-                               elaro_ui_button_add(ui->preview, _("Close"), _preview_close_cb, ui));
+   elaro_ui_popup_close_button_add(ui, ui->preview, _preview_close_cb, ui);
 
    if (!elm_image_file_set(image, url, NULL)) _image_error_cb(status, image, NULL);
    evas_object_show(ui->preview);

@@ -3,14 +3,16 @@
 
 #include "elaro_ui.h"
 
+enum { ELARO_UI_INPUT_HEIGHT = 48 };
+
+Evas_Object *elaro_ui_entry_add(Evas_Object *parent, Eina_Bool secret);
+
+Eina_Bool
+elaro_ui_icon_set(Elaro_Ui *ui, Evas_Object *icon, const char *asset);
 void
 elaro_ui_layout_capture(Elaro_Ui *ui);
 void
 elaro_ui_layout_restore(Elaro_Ui *ui);
-void
-elaro_ui_font_apply(Elaro_Ui *ui);
-void
-elaro_ui_font_set(Evas_Object *entry, const char *font, int size);
 void
 elaro_ui_opacity_apply(Elaro_Ui *ui);
 void
@@ -28,5 +30,22 @@ Evas_Object *
 elaro_ui_media_box_add(Evas_Object *popup, const char *url, const char *fallback);
 Evas_Object *
 elaro_ui_read_view_add(Evas_Object *parent);
+
+Evas_Object *elaro_ui_popup_close_button_add(Elaro_Ui *ui, Evas_Object *popup,
+                                            Evas_Smart_Cb callback, void *data);
+void elaro_ui_popup_show(Evas_Object *popup);
+void elaro_ui_popup_close(Evas_Object *popup);
+Evas_Object *elaro_ui_tabs_add(Evas_Object *parent);
+Evas_Object *elaro_ui_window_content_add(Evas_Object *win);
+void elaro_ui_view_reveal(Evas_Object *view);
+
+void elaro_ui_wrap_width_set(Evas_Object *obj, int width);
+
+/* Logical dimensions, reapplied when Elementary changes the widget scale. */
+void elaro_ui_fixed_height_set(Evas_Object *obj, int height);
+void elaro_ui_size_min_set(Evas_Object *obj, int w, int h);
+void elaro_ui_size_max_set(Evas_Object *obj, int w, int h);
+void elaro_ui_padding_set(Evas_Object *obj, int l, int r, int t, int b);
+void elaro_ui_box_padding_set(Evas_Object *obj, int x, int y);
 
 #endif

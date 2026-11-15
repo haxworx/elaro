@@ -1,5 +1,4 @@
 #include "elaro_ui_private.h"
-#include <Elementary_Cursor.h>
 
 static void
 _irssi_clicked_cb(void *data, Evas_Object *obj, void *info)
@@ -10,7 +9,8 @@ _irssi_clicked_cb(void *data, Evas_Object *obj, void *info)
 static void
 _about_deleted_cb(void *data, Evas *evas, Evas_Object *obj, void *info)
 {
-   ((Elaro_Ui *)data)->about = NULL;
+   Elaro_Ui *ui = data;
+   if (ui->about == obj) ui->about = NULL;
 }
 
 static void
@@ -20,178 +20,152 @@ _about_append(Eina_Strbuf *text, const char *name)
 
    path = elaro_path_join(ELARO_DATA_DIR, name, NULL);
    contents = elaro_file_read(path);
-
    if (!contents)
      {
         free(path);
-        path = elaro_path_join(!strcmp(name, "ABOUT") ? ELARO_BUILD_DIR : ELARO_SOURCE_DIR, name,
-                               NULL);
+        path = elaro_path_join(!strcmp(name, "ABOUT") ? ELARO_BUILD_DIR : ELARO_SOURCE_DIR,
+                               name, NULL);
         contents = elaro_file_read(path);
      }
-
-   if (contents)
-     {
-        eina_strbuf_append(text, contents);
-        eina_strbuf_append(text, "\n\n");
-     }
-   else eina_strbuf_append_printf(text, _("Could not load %s.\n\n"), name);
+   if (contents) eina_strbuf_append(text, contents);
+   else eina_strbuf_append_printf(text, _("Could not load %s."), name);
    free(contents);
    free(path);
 }
 
 static void
+_about_page_set(Evas_Object *view, int page)
+{
+   Eina_Strbuf *text = eina_strbuf_new();
+   char *safe;
+   if (!text) return;
+   if (page == 1)
+     {
+        eina_strbuf_append(text, _("Made by Alastair Poole\nnetstar@netstar.im\n\n"));
+        eina_strbuf_append(text, _("With thanks to the Irssi authors and contributors, and the "
+                                  "EFL and Enlightenment community.\n\n"));
+        _about_append(text, "AUTHORS");
+     }
+   else if (page == 2) _about_append(text, "COPYING");
+   else
+     {
+        eina_strbuf_append(text, _("A comfortable place for your channels, people and conversations.\n\n"));
+        _about_append(text, "ABOUT");
+     }
+   safe = elm_entry_utf8_to_markup(eina_strbuf_string_get(text));
+   elm_entry_entry_set(view, safe);
+   elm_entry_cursor_begin_set(view);
+   free(safe);
+   eina_strbuf_free(text);
+}
+
+static void
+_about_page_changed(void *data, Evas_Object *obj, void *info)
+{
+   _about_page_set(data, elm_segment_control_item_index_get(info));
+   elaro_ui_view_reveal(data);
+}
+
+static void
 _about_close_cb(void *data, Evas_Object *obj, void *info)
 {
-   /* Unregister descendants while their focus parents are still alive. */
-   elm_object_tree_focus_allow_set(data, EINA_FALSE);
-   evas_object_hide(data);
-   evas_object_del(data);
+   Evas_Object *popup = data;
+   Elaro_Ui *ui = evas_object_data_get(popup, "app");
+   if (ui && ui->about == popup) ui->about = NULL;
+   elaro_ui_popup_close(popup);
 }
 
 void
 elaro_ui_about_show(void *data, Evas_Object *obj, void *info)
 {
-   Elaro_Ui *ui;
-   Evas_Object *box, *header, *details, *icon, *name, *copyright, *powered, *link_label, *frame;
-   Evas_Object *viewport, *size, *view, *close;
-   char *path, *safe;
-   Eina_Strbuf *text;
-
-   ui = data;
+   Elaro_Ui *ui = data;
+   Evas_Object *box, *hero, *release, *tabs, *viewport, *reserve, *view, *footer, *powered, *close;
+   Elm_Object_Item *overview;
+   char *version;
 
    if (ui->about)
      {
         evas_object_raise(ui->about);
         elm_object_focus_set(ui->about, EINA_TRUE);
-
         return;
      }
-
    ui->about = elm_popup_add(ui->win);
    elm_object_part_text_set(ui->about, "title,text", _("About Elaro"));
-   evas_object_size_hint_weight_set(ui->about, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-   evas_object_smart_callback_add(ui->about, "dismissed", _about_close_cb, ui->about);
+   evas_object_data_set(ui->about, "app", ui);
+   evas_object_smart_callback_add(ui->about, "block,clicked", _about_close_cb, ui->about);
    evas_object_event_callback_add(ui->about, EVAS_CALLBACK_DEL, _about_deleted_cb, ui);
 
    box = elm_box_add(ui->about);
-   elm_box_padding_set(box, 0, ELM_SCALE_SIZE(16));
-   evas_object_size_hint_padding_set(box, ELM_SCALE_SIZE(16), ELM_SCALE_SIZE(16),
-                                     ELM_SCALE_SIZE(16), ELM_SCALE_SIZE(16));
-   evas_object_size_hint_weight_set(box, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-   evas_object_size_hint_align_set(box, EVAS_HINT_FILL, EVAS_HINT_FILL);
+   elaro_ui_box_padding_set(box, 0, 14);
+   elaro_ui_padding_set(box, 12, 12,
+                                     12, 12);
    elm_object_content_set(ui->about, box);
    evas_object_show(box);
 
-   header = elm_box_add(box);
-   elm_box_horizontal_set(header, EINA_TRUE);
-   elm_box_padding_set(header, ELM_SCALE_SIZE(20), 0);
-   evas_object_size_hint_align_set(header, EVAS_HINT_FILL, 0.5);
-   elm_box_pack_end(box, header);
-   evas_object_show(header);
+   hero = elm_layout_add(box);
+   if (ui->theme_path) elm_layout_file_set(hero, ui->theme_path, "elaro/about/hero");
+   elaro_ui_size_min_set(hero, 420, 174);
+   evas_object_size_hint_weight_set(hero, EVAS_HINT_EXPAND, 0);
+   evas_object_size_hint_align_set(hero, EVAS_HINT_FILL, 0.5);
+   elm_box_pack_end(box, hero);
+   evas_object_show(hero);
+   evas_object_data_set(ui->about, "hero", hero);
 
-   icon = elm_icon_add(header);
-   path = elaro_path_join(ELARO_DATA_DIR, "..", "icons", "hicolor", "128x128", "apps", "elaro.png",
-                          NULL);
+   release = elm_label_add(box);
+   version = elaro_string_printf(_("<b>Version %s</b>  ·  © 2026 Alastair Poole"), PACKAGE_VERSION);
+   elm_object_text_set(release, version);
+   free(version);
+   elm_box_pack_end(box, release);
+   evas_object_show(release);
 
-   if (!elm_image_file_set(icon, path, NULL))
-     {
-        free(path);
-        path = elaro_path_join(ELARO_SOURCE_DIR, "data", "elaro.png", NULL);
-        elm_image_file_set(icon, path, NULL);
-     }
-   free(path);
-   evas_object_size_hint_min_set(icon, ELM_SCALE_SIZE(96), ELM_SCALE_SIZE(96));
-   evas_object_size_hint_max_set(icon, ELM_SCALE_SIZE(96), ELM_SCALE_SIZE(96));
-   elm_box_pack_end(header, icon);
-   evas_object_show(icon);
+   tabs = elaro_ui_tabs_add(box);
+   overview = elm_segment_control_item_add(tabs, NULL, _("Overview"));
+   elm_segment_control_item_add(tabs, NULL, _("Credits"));
+   elm_segment_control_item_add(tabs, NULL, _("License"));
+   evas_object_size_hint_weight_set(tabs, EVAS_HINT_EXPAND, 0);
+   evas_object_size_hint_align_set(tabs, EVAS_HINT_FILL, 0.5);
+   elm_box_pack_end(box, tabs);
+   evas_object_show(tabs);
 
-   details = elm_box_add(header);
-   elm_box_padding_set(details, 0, ELM_SCALE_SIZE(8));
-   evas_object_size_hint_weight_set(details, EVAS_HINT_EXPAND, 0);
-   evas_object_size_hint_align_set(details, EVAS_HINT_FILL, 0.5);
-   elm_box_pack_end(header, details);
-   evas_object_show(details);
-
-   name = elm_label_add(details);
-   elm_object_text_set(name, "<font_size=24><b>Elaro</b></font_size>  " PACKAGE_VERSION);
-   evas_object_size_hint_align_set(name, 0, 0.5);
-   elm_box_pack_end(details, name);
-   evas_object_show(name);
-
-   powered = elm_button_add(details);
-   elm_object_style_set(powered, "blank");
-   link_label = elm_label_add(powered);
-   elm_object_text_set(link_label,
-                       _("<color=#80b8e8><u>Powered by Irssi ↗</u></color>"));
-   evas_object_pass_events_set(link_label, EINA_TRUE);
-   elm_object_content_set(powered, link_label);
-   evas_object_show(link_label);
-   elm_object_cursor_set(powered, ELM_CURSOR_HAND2);
-   evas_object_size_hint_align_set(powered, 0, 0.5);
-   elm_object_tooltip_text_set(powered, "https://irssi.org/");
-   evas_object_smart_callback_add(powered, "clicked", _irssi_clicked_cb, ui);
-   elm_box_pack_end(details, powered);
-   evas_object_show(powered);
-
-   copyright = elm_label_add(details);
-   elm_object_text_set(copyright,
-                       "© 2026 <b>Alastair Poole</b><br/>netstar@netstar.im");
-   evas_object_size_hint_align_set(copyright, 0, 0.5);
-   elm_box_pack_end(details, copyright);
-   evas_object_show(copyright);
-
-   frame = elm_frame_add(box);
-   elm_object_text_set(frame, _("Credits and license"));
-   evas_object_size_hint_weight_set(frame, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-   evas_object_size_hint_align_set(frame, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   elm_box_pack_end(box, frame);
-   evas_object_show(frame);
-
-   viewport = elm_table_add(frame);
-   evas_object_size_hint_weight_set(viewport, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-   evas_object_size_hint_align_set(viewport, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   /* Reserve space independently of the scrollable entry's content. */
-
-   size = evas_object_rectangle_add(evas_object_evas_get(viewport));
-   evas_object_color_set(size, 0, 0, 0, 0);
-   evas_object_size_hint_weight_set(size, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-   evas_object_size_hint_align_set(size, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   evas_object_pass_events_set(size, EINA_TRUE);
-   evas_object_size_hint_min_set(size, ELM_SCALE_SIZE(440), ELM_SCALE_SIZE(240));
-   elm_table_pack(viewport, size, 0, 0, 1, 1);
-   evas_object_show(size);
-
+   /* Entry recalculation replaces its own size hints; reserve a real viewport
+    * independently so each tab remains readable after the text changes. */
+   viewport = elm_table_add(box);
+   evas_object_size_hint_weight_set(viewport, EVAS_HINT_EXPAND, 0);
+   evas_object_size_hint_align_set(viewport, EVAS_HINT_FILL, 0.5);
+   elaro_ui_size_max_set(viewport, -1, 160);
+   reserve = evas_object_rectangle_add(evas_object_evas_get(viewport));
+   evas_object_color_set(reserve, 0, 0, 0, 0);
+   evas_object_pass_events_set(reserve, EINA_TRUE);
+   elaro_ui_size_min_set(reserve, 420, 160);
+   elm_table_pack(viewport, reserve, 0, 0, 1, 1);
+   evas_object_show(reserve);
+   elm_box_pack_end(box, viewport);
+   evas_object_show(viewport);
    view = elm_entry_add(viewport);
    elm_entry_scrollable_set(view, EINA_TRUE);
-   elm_scroller_policy_set(view, ELM_SCROLLER_POLICY_OFF, ELM_SCROLLER_POLICY_AUTO);
    elm_entry_editable_set(view, EINA_FALSE);
    elm_entry_line_wrap_set(view, ELM_WRAP_WORD);
+   elm_scroller_policy_set(view, ELM_SCROLLER_POLICY_OFF, ELM_SCROLLER_POLICY_AUTO);
    evas_object_size_hint_weight_set(view, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
    evas_object_size_hint_align_set(view, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   evas_object_size_hint_min_set(view, ELM_SCALE_SIZE(440), ELM_SCALE_SIZE(240));
-   evas_object_size_hint_max_set(view, -1, ELM_SCALE_SIZE(240));
-   text = eina_strbuf_new();
-   _about_append(text, "ABOUT");
-   eina_strbuf_append(text, _("AUTHORS\n\n"));
-   _about_append(text, "AUTHORS");
-   eina_strbuf_append(text, _("COPYRIGHT AND LICENSE\n\n"));
-   _about_append(text, "COPYING");
-   safe = elm_entry_utf8_to_markup(eina_strbuf_string_get(text));
-   elm_entry_entry_set(view, safe);
-   free(safe);
-   eina_strbuf_free(text);
    elm_table_pack(viewport, view, 0, 0, 1, 1);
    evas_object_show(view);
-   elm_object_content_set(frame, viewport);
-   evas_object_show(viewport);
+   evas_object_smart_callback_add(tabs, "changed", _about_page_changed, view);
+   elm_segment_control_item_selected_set(overview, EINA_TRUE);
+   _about_page_set(view, 0);
+   evas_object_data_set(ui->about, "pages", tabs);
+   evas_object_data_set(ui->about, "text", view);
 
-   close = elm_button_add(box);
-   evas_object_size_hint_weight_set(close, EVAS_HINT_EXPAND, 0);
-   evas_object_size_hint_align_set(close, 1.0, 0.5);
-   elm_object_text_set(close, _("Close"));
-   evas_object_smart_callback_add(close, "clicked", _about_close_cb, ui->about);
-   elm_box_pack_end(box, close);
-   evas_object_show(close);
-   evas_object_show(ui->about);
+   footer = elm_box_add(box);
+   elm_box_horizontal_set(footer, EINA_TRUE);
+   elaro_ui_box_padding_set(footer, 12, 0);
+   evas_object_size_hint_weight_set(footer, EVAS_HINT_EXPAND, 0);
+   evas_object_size_hint_align_set(footer, EVAS_HINT_FILL, 0.5);
+   elm_box_pack_end(box, footer);
+   evas_object_show(footer);
+   powered = elaro_ui_button_add(footer, _("Powered by Irssi ↗"), _irssi_clicked_cb, ui);
+   elm_box_pack_end(footer, powered);
+   close = elaro_ui_popup_close_button_add(ui, ui->about, _about_close_cb, ui->about);
+   elaro_ui_popup_show(ui->about);
    elm_object_focus_set(close, EINA_TRUE);
 }
