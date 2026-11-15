@@ -50,6 +50,7 @@ struct _Elaro_Ui
    } dcc;
 
    char *theme_path;
+   Ecore_Event_Handler *theme_config_handler;
    Evas_Object *resize_grips[8];
    Evas_Object *frame, *app_menu, *theme_buttons[4], *theme_status;
    Evas_Object *background, *content;

@@ -7,11 +7,27 @@ _history_textblock(Evas_Object *history)
 {
    Evas_Object *source = elm_entry_textblock_get(history);
    Evas_Object *text = evas_object_textblock_add(evas_object_evas_get(history));
-   const Evas_Textblock_Style *style;
+   const Evas_Textblock_Style *source_style;
+   Evas_Textblock_Style *style;
 
-   evas_object_textblock_style_set(text, evas_object_textblock_style_get(source));
-   style = evas_object_textblock_style_user_peek(source);
-   if (style) evas_object_textblock_style_user_push(text, (Evas_Textblock_Style *)style);
+   /* Edje owns and can replace these styles on a later theme/cache update.
+    * Give inline objects independent snapshots, including user overrides. */
+   source_style = evas_object_textblock_style_get(source);
+   if (source_style)
+     {
+        style = evas_textblock_style_new();
+        evas_textblock_style_set(style, evas_textblock_style_get(source_style));
+        evas_object_textblock_style_set(text, style);
+        evas_textblock_style_free(style);
+     }
+   source_style = evas_object_textblock_style_user_peek(source);
+   if (source_style)
+     {
+        style = evas_textblock_style_new();
+        evas_textblock_style_set(style, evas_textblock_style_get(source_style));
+        evas_object_textblock_style_user_push(text, style);
+        evas_textblock_style_free(style);
+     }
    evas_object_scale_set(text, evas_object_scale_get(source));
    return text;
 }
@@ -53,7 +69,6 @@ _history_prefix_item(void *data, Evas_Object *history, const char *item)
    const char *font, *end;
    char *prefix, *format;
    Eina_Bool timestamp;
-   int r = 224, g = 233, b = 248, a = 255;
 
    if (strncmp(item, "chat-prefix:", 12)) return NULL;
    if (strstr(item + 12, ":repeat"))
@@ -81,10 +96,10 @@ _history_prefix_item(void *data, Evas_Object *history, const char *item)
       end += 9;
       while (*end && (*end != '\'' || (end > font && end[-1] == '\\'))) end++;
    }
-   edje_color_class_get("/fg/normal/entry/text", &r, &g, &b, &a,
-                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-   format = elaro_string_printf("%.*s color=#%02x%02x%02x%02x wrap=none ellipsis=1.0 align=%s left_margin=0 right_margin=%d'%s",
-                                end ? (int)(end - font) : 9, font, r, g, b, a,
+   /* Keep the entry's resolved foreground. The desktop's global color class
+    * can change independently and must not make just the prefixes invisible. */
+   format = elaro_string_printf("%.*s wrap=none ellipsis=1.0 align=%s left_margin=0 right_margin=%d'%s",
+                                end ? (int)(end - font) : 9, font,
                                 timestamp ? "left" : "right", timestamp ? 0 : ELM_SCALE_SIZE(8),
                                 end && *end ? end + 1 : "");
    evas_textblock_style_set(style, format);
@@ -157,7 +172,13 @@ _history_columns(Evas_Object *history, const char *markup, Eina_Bool reset)
      }
    evas_object_del(measure);
    evas_object_geometry_get(history, NULL, NULL, &width, NULL);
-   if (width > 0 && gutter > width * 0.45) gutter = width * 0.45;
+   /* Before the first layout the entry can be only one pixel wide. Do not
+    * bake zero-width inline items into the history at that provisional size.
+    * Wait until the available gutter can hold a timestamp and nickname gap;
+    * the resize reflow will apply the normal limit once layout is ready. */
+   if (width * 0.45 > timestamp_width + ELM_SCALE_SIZE(8)
+       && gutter > width * 0.45)
+      gutter = width * 0.45;
    if (timestamp_width > gutter) timestamp_width = gutter;
    if (saved_gutter) *saved_gutter = gutter;
    out = eina_strbuf_new();

@@ -129,6 +129,7 @@ elaro_ui_window_content_add(Evas_Object *win)
    evas_object_size_hint_align_set(frame->root, EVAS_HINT_FILL, EVAS_HINT_FILL);
    elm_object_part_content_set(frame->frame, "elaro.content", frame->root);
    Evas_Object *header = elm_table_add(frame->root);
+   elm_table_padding_set(header, ELM_SCALE_SIZE(6), 0);
    evas_object_size_hint_weight_set(header, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(header, EVAS_HINT_FILL, 0.5);
    elaro_ui_fixed_height_set(header, 36);

@@ -9,6 +9,38 @@ static const char *theme_names[] = { "midnight", "porcelain", "verdigris", "embe
 static const char *theme_labels[] = { "Midnight", "Porcelain", "Verdigris", "Ember" };
 
 static void
+_theme_palette_apply(Elaro_Ui *ui)
+{
+   for (unsigned int i = 0; i < EINA_C_ARRAY_LENGTH(palette_classes); i++)
+     {
+        char *value = edje_file_data_get(ui->theme_path, palette_classes[i]);
+        int r, g, b, a;
+        if (value && sscanf(value, "%d %d %d %d", &r, &g, &b, &a) == 4)
+          edje_color_class_set(palette_classes[i], r, g, b, a, r, g, b, a, r, g, b, a);
+        free(value);
+     }
+}
+
+static Eina_Bool
+_theme_config_changed(void *data, int type, void *event)
+{
+   /* Elementary clears global palette classes when desktop settings reload.
+    * Its completion event arrives after that reset, including for open popups. */
+   _theme_palette_apply(data);
+   return ECORE_CALLBACK_RENEW;
+}
+
+static void
+_theme_shutdown(Elaro_Ui *ui)
+{
+   if (ui->theme_config_handler) ecore_event_handler_del(ui->theme_config_handler);
+   ui->theme_config_handler = NULL;
+   if (ui->theme_path) elm_theme_overlay_del(NULL, ui->theme_path);
+   free(ui->theme_path);
+   ui->theme_path = NULL;
+}
+
+static void
 _theme_apply(Elaro_Ui *ui)
 {
    char *name, *path, *build_dir;
@@ -38,14 +70,10 @@ _theme_apply(Elaro_Ui *ui)
      }
    free(ui->theme_path);
    ui->theme_path = path;
-   for (unsigned int i = 0; i < EINA_C_ARRAY_LENGTH(palette_classes); i++)
-     {
-        char *value = edje_file_data_get(path, palette_classes[i]);
-        int r, g, b, a;
-        if (value && sscanf(value, "%d %d %d %d", &r, &g, &b, &a) == 4)
-          edje_color_class_set(palette_classes[i], r, g, b, a, r, g, b, a, r, g, b, a);
-        free(value);
-     }
+   _theme_palette_apply(ui);
+   if (!ui->theme_config_handler)
+      ui->theme_config_handler = ecore_event_handler_add(ELM_EVENT_CONFIG_ALL_CHANGED,
+                                                         _theme_config_changed, ui);
    if (ui->frame)
      {
         content = elm_object_part_content_unset(ui->frame, "elaro.content");

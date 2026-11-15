@@ -159,10 +159,14 @@ static int _prefix_colors_check(Evas_Object *object, const char *color)
           {
              const Evas_Textblock_Style *style = evas_object_textblock_style_user_peek(object);
              assert(style && strstr(evas_textblock_style_get(style), color));
+             assert(!strstr(evas_textblock_style_get(style), "color=#00000000"));
              assert(strstr(evas_textblock_style_get(style), "font_size="));
              int width, height;
              evas_object_textblock_size_native_get(object, &width, &height);
              assert(width > 0 && height > 0);
+             int cell_width, cell_height;
+             evas_object_geometry_get(object, NULL, NULL, &cell_width, &cell_height);
+             assert(cell_width > 0 && cell_height >= height);
              assert(evas_object_visible_get(object));
              found++;
           }
@@ -453,19 +457,69 @@ static void _single_line_scroll_check(Evas_Object *entry)
    free(saved);
 }
 
+static int _visible_prefixes_check(Evas_Object *object, int top, int bottom, unsigned int foreground)
+{
+   int found = 0;
+   if (!strcmp(evas_object_type_get(object), "textblock"))
+     {
+        const char *markup = evas_object_textblock_text_markup_get(object);
+        int x, y, w, h, width, height;
+        evas_object_geometry_get(object, &x, &y, &w, &h);
+        if (markup && !strcmp(markup, "[12:34]") && y >= top && y + h <= bottom)
+          {
+             evas_object_textblock_size_native_get(object, &width, &height);
+             assert(width > 0 && height > 0 && h >= height);
+             assert(evas_object_visible_get(object));
+             int canvas_w, canvas_h;
+             ecore_evas_geometry_get(test_canvas, NULL, NULL, &canvas_w, &canvas_h);
+             const uint32_t *pixels = ecore_evas_buffer_pixels_get(test_canvas);
+             Eina_Bool ink = EINA_FALSE;
+             for (int py = y; py < y + h && py < canvas_h; py++)
+                for (int px = x; px < x + w && px < canvas_w; px++)
+                   if (px >= 0 && py >= 0 &&
+                       (pixels[py * canvas_w + px] & 0xffffff) == foreground)
+                      ink = EINA_TRUE;
+             assert(ink);
+             found++;
+          }
+     }
+   Eina_List *members = evas_object_smart_members_get(object), *node;
+   Evas_Object *child;
+   EINA_LIST_FOREACH(members, node, child)
+      found += _visible_prefixes_check(child, top, bottom, foreground);
+   eina_list_free(members);
+   return found;
+}
+
 static void _history_scroll_check(Elaro_Ui *ui)
 {
    size_t length = eina_strbuf_length_get(ui->current->history);
+   int r, g, b, a;
+   edje_color_class_get("/fg/normal/entry/text", &r, &g, &b, &a,
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+   unsigned int foreground = (r << 16) | (g << 8) | b;
    for (int i = 0; i < 100; i++)
-     eina_strbuf_append(ui->current->history, "[12:34] &lt;Alice&gt; Scrollable themed history<br/>");
-   elaro_ui_history_refresh(ui);
+     {
+        const char *line = i % 2 ? "[12:34] &lt;Alice&gt; Scrollable themed history"
+                                : "[12:34] &lt;Bob&gt; Scrollable themed history";
+        eina_strbuf_append(ui->current->history, line);
+        eina_strbuf_append(ui->current->history, "<br/>");
+        elaro_ui_history_append(ui, line);
+        if (!(i % 10))
+          {
+             elm_cache_all_flush();
+             _settle();
+          }
+     }
    _settle();
    int x, y, w, h, content_h;
    evas_object_geometry_get(ui->history, &x, &y, &w, &h);
+   assert(_visible_prefixes_check(ui->history, y, y + h, foreground) > 2);
    elm_scroller_child_size_get(ui->history, NULL, &content_h);
    assert(content_h > h);
    elm_scroller_region_show(ui->history, 0, 0, w, h);
    _settle();
+   assert(_visible_prefixes_check(ui->history, y, y + h, foreground) > 2);
    Evas *canvas = evas_object_evas_get(ui->history);
    unsigned int stamp = (unsigned int)(ecore_time_get() * 1000);
    evas_event_feed_mouse_move(canvas, x + w / 2, y + h / 2, stamp, NULL);
@@ -622,9 +676,16 @@ int main(int argc, char **argv)
    conversation.target = "#test";
    conversation.channel = EINA_TRUE;
    conversation.history = eina_strbuf_new();
-   eina_strbuf_append(conversation.history, "[12:34] &lt;Alice&gt; Theme persistence<br/>");
    ui.current = &conversation;
    elaro_ui_history_refresh(&ui);
+   /* New channels can receive their first messages before the first layout. */
+   evas_object_resize(ui.history, 1, 1);
+   eina_strbuf_append(conversation.history, "[12:34] &lt;Alice&gt; Theme persistence<br/>");
+   elaro_ui_history_append(&ui, "[12:34] &lt;Alice&gt; Theme persistence");
+   int initial_width, initial_height;
+   assert(sscanf(strstr(elm_entry_entry_get(ui.history), "<item "),
+                 "<item absize=%dx%d", &initial_width, &initial_height) == 2);
+   assert(initial_width > 0 && initial_height > 0);
    for (int j = 0; j < 3; j++)
      {
         classes[j] = elm_genlist_item_class_new();
@@ -642,6 +703,7 @@ int main(int argc, char **argv)
    evas_object_resize(ui.win, 900, 760);
    evas_object_show(ui.win);
    _settle();
+   assert(_prefix_colors_check(ui.history, "color=#e0e9f8ff") == 2);
    _close_alignment_check(items);
    /* First launch must leave room around Settings at desktop scale 2. */
    double startup_scale = elm_config_scale_get();
@@ -772,6 +834,27 @@ int main(int argc, char **argv)
         assert(strstr(elm_entry_entry_get(ui.history), "Theme persistence"));
         assert(!elm_entry_text_style_user_peek(ui.history));
         assert(_prefix_colors_check(ui.history, expected_color) > 0);
+        /* Desktop palette updates must not override this theme's explicit
+         * history foreground on newly created inline cells. */
+        edje_color_class_set("/fg/normal/entry/text", 0, 0, 0, 0,
+                             0, 0, 0, 0, 0, 0, 0, 0);
+        elm_entry_entry_set(ui.history, "");
+        elaro_ui_history_refresh(&ui);
+        _settle();
+        assert(_prefix_colors_check(ui.history, expected_color) == 2);
+        int history_y, history_h;
+        evas_object_geometry_get(ui.history, NULL, &history_y, NULL, &history_h);
+        assert(_visible_prefixes_check(ui.history, history_y, history_y + history_h,
+                                       (cr << 16) | (cg << 8) | cb) > 0);
+        edje_color_class_set("/fg/normal/entry/text", cr, cg, cb, ca,
+                             cr, cg, cb, ca, cr, cg, cb, ca);
+        elm_config_font_overlay_set("entry", "Sans", 24);
+        elm_config_font_overlay_apply();
+        _settle();
+        assert(_prefix_colors_check(ui.history, expected_color) == 2);
+        elm_config_font_overlay_unset("entry");
+        elm_config_font_overlay_apply();
+        _settle();
         assert(elm_object_part_content_get(panes, "right") == ui.history);
         assert(elm_object_part_content_get(panes, "left") == ui.buffers);
         assert(fabs(elm_panes_content_left_size_get(panes) - 0.4) < 0.02);
@@ -835,6 +918,14 @@ int main(int argc, char **argv)
         _click(evas_object_data_get(ui.app_menu, "settings"));
         assert(ui.connection.popup);
         assert(!strcmp(elm_object_part_text_get(ui.connection.popup, "title,text"), "Settings"));
+        /* Desktop settings can be reloaded while this popup stays open. */
+        elm_config_reload();
+        _settle();
+        int reload_r, reload_g, reload_b, reload_a;
+        assert(edje_color_class_get("/fg/normal/popup/text/title",
+                                    &reload_r, &reload_g, &reload_b, &reload_a,
+                                    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+        assert(reload_r == cr && reload_g == cg && reload_b == cb && reload_a == ca);
         assert(elm_entry_password_get(ui.connection.password));
         edje_object_file_get(evas_object_smart_parent_get(elm_entry_textblock_get(ui.connection.password)),
                              &file, &group);
@@ -904,8 +995,7 @@ int main(int argc, char **argv)
    eina_strbuf_free(conversation.history);
    evas_object_del(ui.win);
    assert(!ui.theme_icons);
-   elm_theme_overlay_del(NULL, ui.theme_path);
-   free(ui.theme_path);
+   _theme_shutdown(&ui);
    elaro_config_free(ui.config);
    elm_shutdown();
    return 0;

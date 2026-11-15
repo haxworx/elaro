@@ -448,7 +448,8 @@ elaro_ui_buffer_title_update(Elaro_Ui *ui)
         elm_object_disabled_set(ui->title_button, !b->channel && !*b->target);
         if (b->channel) elm_object_tooltip_text_set(ui->title_button, _("View channel bans"));
         else if (*b->target) elm_object_tooltip_text_set(ui->title_button, _("Look up user (WHOIS)"));
-        else elm_object_tooltip_unset(ui->title_button);
+        /* Clearing an unset tooltip must also work on the initial Status view. */
+        else elm_object_tooltip_text_set(ui->title_button, NULL);
      }
    free(title);
    free(safe);

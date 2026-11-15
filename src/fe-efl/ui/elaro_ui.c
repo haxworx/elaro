@@ -384,8 +384,7 @@ elaro_ui_run(int argc, char **argv)
    evas_object_del(ui.win);
    elaro_config_free(ui.config);
    free(ui.binary);
-   if (ui.theme_path) elm_theme_overlay_del(NULL, ui.theme_path);
-   free(ui.theme_path);
+   _theme_shutdown(&ui);
    free(ui.config_error);
    elm_shutdown();
 
