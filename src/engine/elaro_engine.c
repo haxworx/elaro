@@ -135,7 +135,7 @@ _nick_mentioned(IRC_SERVER_REC *server, const char *text)
 
 static void
 _emit_event_full(Elaro_Engine_Event_Type type, const char *server, const char *target,
-                 const char *text, bool private_message, bool mention)
+                 const char *text, bool private_message, bool mention, bool channel_message)
 {
    Elaro_Engine_Event *e;
 
@@ -143,6 +143,7 @@ _emit_event_full(Elaro_Engine_Event_Type type, const char *server, const char *t
    e->type = type;
    e->private_message = private_message;
    e->mention = mention;
+   e->channel_message = channel_message;
    e->server = g_strdup(server ? server : "Status");
    e->target = g_strdup(target ? target : "");
    e->text = g_utf8_make_valid(text ? text : "", -1);
@@ -152,7 +153,7 @@ _emit_event_full(Elaro_Engine_Event_Type type, const char *server, const char *t
 static void
 _emit_event(Elaro_Engine_Event_Type type, const char *server, const char *target, const char *text)
 {
-   _emit_event_full(type, server, target, text, false, false);
+   _emit_event_full(type, server, target, text, false, false, false);
 }
 
 void
@@ -486,7 +487,7 @@ _action(IRC_SERVER_REC *s, const char *body, const char *nick, const char *addre
                     !channel && nick && address && *address && !s->nick_comp_func(target, s->nick)
                         && s->nick_comp_func(nick, s->nick),
                     channel && nick && s->nick_comp_func(nick, s->nick)
-                        && _nick_mentioned(s, body));
+                        && _nick_mentioned(s, body), channel);
    if (!channel && nick) _presence_known(SERVER(s), nick);
    g_free(text);
 }
@@ -547,7 +548,7 @@ _server_event(IRC_SERVER_REC *s, const char *line, const char *nick, const char 
    g_autofree char *membership_params = NULL;
 
    char *copy, *args, *target, *text, *body, *victim;
-   gboolean own_part, own_kick = FALSE, mention = FALSE;
+   gboolean own_part, own_kick = FALSE, mention = FALSE, channel_message = FALSE;
 
    copy = g_strdup(line);
    args = strchr(copy, ' ');
@@ -587,6 +588,7 @@ _server_event(IRC_SERVER_REC *s, const char *line, const char *nick, const char 
                   g_free(copy);
                   return;
                }
+             channel_message = target && server_ischannel(SERVER(s), target);
              mention = !g_ascii_strcasecmp(copy, "PRIVMSG") && target && nick
                        && server_ischannel(SERVER(s), target)
                        && s->nick_comp_func(nick, s->nick) && _nick_mentioned(s, body);
@@ -679,7 +681,7 @@ _server_event(IRC_SERVER_REC *s, const char *line, const char *nick, const char 
    _emit_event_full(ELARO_ENGINE_LINE, s->tag, own_part || own_kick ? NULL : target, text,
                     !g_ascii_strcasecmp(copy, "PRIVMSG") && target && nick && address && *address
                         && !server_ischannel(SERVER(s), args) && !s->nick_comp_func(args, s->nick)
-                        && s->nick_comp_func(nick, s->nick), mention);
+                        && s->nick_comp_func(nick, s->nick), mention, channel_message);
 
    if (target && !server_ischannel(SERVER(s), target)) _presence_known(SERVER(s), target);
 

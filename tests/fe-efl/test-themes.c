@@ -22,6 +22,9 @@ void elaro_engine_submit(Elaro_Engine *engine, Elaro_Engine_Command *command)
 {
    elaro_engine_command_free(command);
 }
+/* This fixture supplies synthetic rows; model-backed recreation is covered
+ * by test-ui-state. */
+void elaro_ui_buffers_recreate(Elaro_Ui *ui) {}
 void elaro_ui_external_link_open(Elaro_Ui *ui, const char *url) {}
 #include "src/fe-efl/ui/elaro_ui_theme.h"
 
@@ -38,6 +41,60 @@ static void _settle(void)
    ecore_timer_add(0.06, _stop, NULL);
    ecore_main_loop_begin();
 }
+/* Verify breathing and cancellation in each compiled palette. */
+static void _private_unread_check(Elaro_Ui *ui)
+{
+   Evas_Object *view = edje_object_add(evas_object_evas_get(ui->win));
+   assert(edje_object_file_set(view, ui->theme_path, "elm/genlist/item/default_style/default"));
+   evas_object_resize(view, 200, 42);
+   evas_object_show(view);
+   /* Joining selects successive rows; deselection must clear the surface too. */
+   edje_object_signal_emit(view, "elm,state,selected", "elm");
+   edje_object_message_signal_process(view);
+   assert(!strcmp(edje_object_part_state_get(view, "base", NULL), "selected"));
+   /* Custom-state refreshes must never override genlist selection. */
+   const char *item_states = edje_object_data_get(view, "states");
+   assert(item_states && !strstr(item_states, "chosen"));
+   edje_object_signal_emit(view, "elm,state,chosen,passive", "elm");
+   edje_object_message_signal_process(view);
+   assert(!strcmp(edje_object_part_state_get(view, "chosen", NULL), "active"));
+   edje_object_signal_emit(view, "elm,state,unselected", "elm");
+   edje_object_message_signal_process(view);
+   assert(!strcmp(edje_object_part_state_get(view, "base", NULL), "default"));
+   assert(!strcmp(edje_object_part_state_get(view, "chosen", NULL), "default"));
+   /* LIST_STYLE supplies the foreground; the part must not tint it twice. */
+   int r, g, b, a;
+   evas_object_color_get(edje_object_part_object_get(view, "elm.text"), &r, &g, &b, &a);
+   assert(r == 255 && g == 255 && b == 255 && a == 255);
+   const char *states[] = { "mention", "private_unread" };
+   const char *clips[] = { "mention-clip", "private-unread-clip" };
+   for (int effect = 0; effect < 2; effect++)
+     {
+        char signal[80];
+        const Evas_Object *clip = edje_object_part_object_get(view, clips[effect]);
+        int initial, later;
+        evas_object_color_get(clip, NULL, NULL, NULL, &initial);
+        assert(initial == 0);
+        snprintf(signal, sizeof(signal), "elm,state,%s,active", states[effect]);
+        edje_object_signal_emit(view, signal, "elm");
+        _settle();
+        evas_object_color_get(clip, NULL, NULL, NULL, &initial);
+        edje_object_signal_emit(view, "mouse,in", "event");
+        for (int i = 0; i < 7; i++) _settle();
+        evas_object_color_get(clip, NULL, NULL, NULL, &later);
+        assert(initial > 0 && later > initial);
+        assert(!strcmp(edje_object_part_state_get(view, "elm.text", NULL), "default"));
+        snprintf(signal, sizeof(signal), "elm,state,%s,passive", states[effect]);
+        edje_object_signal_emit(view, signal, "elm");
+        _settle();
+        for (int i = 0; i < 22; i++) _settle();
+        evas_object_color_get(clip, NULL, NULL, NULL, &later);
+        assert(later == 0);
+        assert(!strcmp(edje_object_part_state_get(view, "elm.text", NULL), "default"));
+     }
+   evas_object_del(view);
+}
+
 static void _click_at(Evas *canvas, int x, int y)
 {
    unsigned int timestamp = (unsigned int)(ecore_time_get() * 1000);
@@ -125,7 +182,7 @@ static void _tree_contract(void *data, Evas_Object *obj, void *info)
 }
 static void _close_alignment_check(Elm_Object_Item **items)
 {
-   int expected_x = 0, expected_w = 0;
+   int expected_x = 0, expected_w = 0, expected_text_x = 0;
    for (int i = 0; i < 3; i++)
      {
         Evas_Object *close = elm_object_item_part_content_get(items[i], "elm.swallow.end");
@@ -135,6 +192,17 @@ static void _close_alignment_check(Elm_Object_Item **items)
         assert(w > 0);
         if (!i) { expected_x = x; expected_w = w; }
         else assert(x == expected_x && w == expected_w);
+        Evas_Object *view = evas_object_smart_parent_get(close);
+        while (view && (!evas_object_type_get(view) ||
+               strcmp(evas_object_type_get(view), "edje") ||
+               !edje_object_part_exists(view, "elm.text")))
+          view = evas_object_smart_parent_get(view);
+        assert(view);
+        Evas_Object *text = (Evas_Object *)edje_object_part_object_get(view, "elm.text");
+        assert(text);
+        evas_object_geometry_get(text, &x, NULL, NULL, NULL);
+        if (!i) expected_text_x = x;
+        else assert(x == expected_text_x);
      }
 }
 static Evas_Object *_row_content(void *data, Evas_Object *obj, const char *part)
@@ -237,7 +305,7 @@ static void _context_menu_check(Elaro_Ui *ui, const char *artifacts, int index)
           }
         int x, y, w, h;
         evas_object_geometry_get(view, &x, &y, &w, &h);
-        assert(w > 0 && h >= ELM_SCALE_SIZE(40));
+        assert(w > 0 && h >= ELM_SCALE_SIZE(30));
         evas_event_feed_mouse_move(evas_object_evas_get(view), x + w / 2, y + h / 2, 0, NULL);
         _settle();
         assert(elm_menu_item_selected_get(item));
@@ -391,7 +459,7 @@ static void _subwindow_check(Elaro_Ui *ui, const char *artifacts, int index)
              elm_image_file_get(icon, &file, &group);
              assert(!strcmp(file, ui->theme_path) && !strcmp(group, expected));
              evas_object_geometry_get(icon, NULL, NULL, &w, &h);
-             assert(w == ELM_SCALE_SIZE(20) && h == ELM_SCALE_SIZE(20));
+             assert(w == ELM_SCALE_SIZE(19) && h == ELM_SCALE_SIZE(19));
           }
      }
    Evas_Object *drag = evas_object_data_get(win, "elaro-window-drag");
@@ -747,21 +815,21 @@ int main(int argc, char **argv)
         _close_alignment_check(items);
         int bx, by;
         Eina_Size2D icon_min = efl_gfx_hint_size_combined_min_get(icon);
-        assert(icon_min.w == ELM_SCALE_SIZE(22) && icon_min.h == ELM_SCALE_SIZE(22));
+        assert(icon_min.w == ELM_SCALE_SIZE(17) && icon_min.h == ELM_SCALE_SIZE(17));
         elm_box_padding_get(ui.content, &bx, &by);
         assert(bx == ELM_SCALE_SIZE(3) && by == ELM_SCALE_SIZE(5));
         int x, y, w, h;
         edje_object_part_geometry_get(elm_layout_edje_get(ui.frame), "elaro.content", &x, &y, &w, &h);
-        assert(abs(x - ELM_SCALE_SIZE(6)) <= 1);
+        assert(abs(x - ELM_SCALE_SIZE(5)) <= 1);
         evas_object_geometry_get(ui.resize_grips[7], NULL, NULL, &w, &h);
-        assert(w == ELM_SCALE_SIZE(6) && h == ELM_SCALE_SIZE(6));
+        assert(w == ELM_SCALE_SIZE(5) && h == ELM_SCALE_SIZE(5));
         Eina_Size2D header_min = efl_gfx_hint_size_combined_min_get(header);
         assert(header_min.h == ELM_SCALE_SIZE(48));
         _resize_check(&ui);
         int entry_h, secret_h;
         evas_object_geometry_get(entry, NULL, NULL, NULL, &entry_h);
         evas_object_geometry_get(secret, NULL, NULL, NULL, &secret_h);
-        assert(entry_h == ELM_SCALE_SIZE(48) && secret_h == entry_h);
+        assert(entry_h == ELM_SCALE_SIZE(36) && secret_h == entry_h);
         _check_visual(check, EINA_TRUE);
         _single_line_scroll_check(entry);
         assert(!strcmp(elm_entry_entry_get(entry), "Unsent draft"));
@@ -786,7 +854,8 @@ int main(int argc, char **argv)
         evas_object_geometry_get(separator, NULL, &sy, NULL, &sh);
         evas_object_geometry_get(evas_object_data_get(ui.app_menu, "settings"), NULL, &settings_y, NULL, NULL);
         assert(sh == ELM_SCALE_SIZE(1));
-        assert(settings_y - sy - sh <= ELM_SCALE_SIZE(4));
+        assert(settings_y - sy - sh >= ELM_SCALE_SIZE(6));
+        assert(settings_y - sy - sh <= ELM_SCALE_SIZE(10));
         saved = elaro_config_load(&error);
         assert(saved && !error && saved->theme == i);
         elaro_config_free(saved);
@@ -815,6 +884,7 @@ int main(int argc, char **argv)
         assert(!ui.app_menu);
         _context_menu_check(&ui, artifacts, i);
         _progress_check(&ui, artifacts, i);
+        _private_unread_check(&ui);
         _subwindow_check(&ui, artifacts, i);
         _placeholder_check(entry, ui.theme_path);
         _check_visual(check, EINA_TRUE);
@@ -946,6 +1016,10 @@ int main(int argc, char **argv)
         assert(!strcmp(file, ui.theme_path));
         assert(!strcmp(group, "elm/entry/base-password/default"));
         _snapshot(&ui, artifacts, i, "settings");
+        int connection_w, views_w;
+        evas_object_geometry_get(ui.connection.connection_view, NULL, NULL, &connection_w, NULL);
+        evas_object_geometry_get(ui.connection.view_box, NULL, NULL, &views_w, NULL);
+        assert(connection_w == views_w);
         Evas_Object *fields[] = {ui.connection.host, ui.connection.port, ui.connection.nick,
            ui.connection.username, ui.connection.realname, ui.connection.email,
            ui.connection.password, ui.connection.channels,
@@ -954,17 +1028,17 @@ int main(int argc, char **argv)
           {
              int height;
              evas_object_geometry_get(fields[f], NULL, NULL, NULL, &height);
-             assert(height == ELM_SCALE_SIZE(48));
+             assert(height == ELM_SCALE_SIZE(36));
           }
         _type_in(ui.connection.host);
         assert(ui.connection.dirty);
         int edited_height;
         evas_object_geometry_get(ui.connection.host, NULL, NULL, NULL, &edited_height);
-        assert(edited_height == ELM_SCALE_SIZE(48));
+        assert(edited_height == ELM_SCALE_SIZE(36));
         tabs = evas_object_data_get(ui.connection.popup, "pages");
         int tx, ty, tw, th;
         evas_object_geometry_get(tabs, &tx, &ty, &tw, &th);
-        assert(th >= ELM_SCALE_SIZE(48));
+        assert(th == ELM_SCALE_SIZE(27));
         _click_at(evas_object_evas_get(tabs), tx + tw * 3 / 4, ty + th / 2);
         assert(ui.connection.options_visible);
         Evas_Object *save_label = (Evas_Object *)edje_object_part_object_get(
@@ -995,7 +1069,7 @@ int main(int argc, char **argv)
         tabs = evas_object_data_get(ui.about, "pages");
         int x, y, w, h;
         evas_object_geometry_get(tabs, &x, &y, &w, &h);
-        assert(h >= ELM_SCALE_SIZE(48));
+        assert(h == ELM_SCALE_SIZE(27));
         _click_at(evas_object_evas_get(tabs), x + w * 5 / 6, y + h / 2);
         assert(strstr(elm_entry_entry_get(evas_object_data_get(ui.about, "text")),
                       "GNU GENERAL PUBLIC LICENSE"));

@@ -41,6 +41,94 @@ elaro_ui_entry_add(Evas_Object *parent, Eina_Bool secret)
    return entry;
 }
 
+typedef struct
+{
+   Evas_Object *entry;
+   Ecore_Timer *timer;
+   double position, last_tick, resume_at;
+   int direction;
+   Eina_Bool reset;
+} Entry_Scroll;
+
+static void
+_entry_scroll_reset(void *data, Evas_Object *obj, void *info)
+{
+   Entry_Scroll *scroll = data;
+   scroll->reset = EINA_TRUE;
+}
+
+static void
+_entry_scroll_resize(void *data, Evas *evas, Evas_Object *obj, void *info)
+{
+   _entry_scroll_reset(data, obj, info);
+}
+
+static Eina_Bool
+_entry_scroll_tick(void *data)
+{
+   Entry_Scroll *scroll = data;
+   Evas_Object *entry = scroll->entry;
+   double now = ecore_loop_time_get();
+   double elapsed = MIN(now - scroll->last_tick, 0.1);
+   int width, height, content_width;
+   scroll->last_tick = now;
+   if (!evas_object_visible_get(entry) || elm_object_focus_get(entry)
+       || elm_object_disabled_get(entry))
+     {
+        scroll->reset = EINA_TRUE;
+        return ECORE_CALLBACK_RENEW;
+     }
+   elm_scroller_region_get(entry, NULL, NULL, &width, &height);
+   elm_scroller_child_size_get(entry, &content_width, NULL);
+   int limit = MAX(0, content_width - width);
+   if (scroll->reset || !limit)
+     {
+        scroll->position = 0;
+        scroll->direction = 1;
+        scroll->resume_at = now + 1.5;
+        scroll->reset = EINA_FALSE;
+     }
+   else if (now >= scroll->resume_at)
+     {
+        scroll->position += scroll->direction * ELM_SCALE_SIZE(30) * elapsed;
+        if (scroll->position >= limit || scroll->position <= 0)
+          {
+             scroll->position = ELARO_CLAMP(scroll->position, 0, limit);
+             scroll->direction = -scroll->direction;
+             scroll->resume_at = now + 1.5;
+          }
+     }
+   if (width > 0 && height > 0)
+      elm_scroller_region_show(entry, (int)scroll->position, 0, width, height);
+   return ECORE_CALLBACK_RENEW;
+}
+
+static void
+_entry_scroll_free(void *data, Evas *evas, Evas_Object *obj, void *info)
+{
+   Entry_Scroll *scroll = data;
+   ecore_timer_del(scroll->timer);
+   free(scroll);
+}
+
+/* The entry retains normal cursor scrolling whenever the user edits it. */
+void
+elaro_ui_entry_auto_scroll_enable(Evas_Object *entry)
+{
+   if (evas_object_data_get(entry, "elaro-auto-scroll")) return;
+   Entry_Scroll *scroll = calloc(1, sizeof(*scroll));
+   if (!scroll) return;
+   scroll->entry = entry;
+   scroll->last_tick = ecore_loop_time_get();
+   scroll->reset = EINA_TRUE;
+   scroll->timer = ecore_timer_add(1.0 / 30.0, _entry_scroll_tick, scroll);
+   if (!scroll->timer) { free(scroll); return; }
+   evas_object_data_set(entry, "elaro-auto-scroll", scroll);
+   evas_object_smart_callback_add(entry, "changed", _entry_scroll_reset, scroll);
+   evas_object_event_callback_add(entry, EVAS_CALLBACK_RESIZE, _entry_scroll_resize, scroll);
+   evas_object_event_callback_add(entry, EVAS_CALLBACK_DEL, _entry_scroll_free, scroll);
+}
+
 Evas_Object *
 elaro_ui_field_add(Evas_Object *box, const char *label, const char *value, Eina_Bool secret)
 {
@@ -64,7 +152,7 @@ elaro_ui_field_add(Evas_Object *box, const char *label, const char *value, Eina_
    free(safe);
    evas_object_size_hint_weight_set(e, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(e, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   elaro_ui_size_min_set(e, 320, ELARO_UI_INPUT_HEIGHT);
+   elaro_ui_size_min_set(e, 240, ELARO_UI_INPUT_HEIGHT);
    elm_object_content_set(frame, e);
    elm_box_pack_end(box, frame);
    evas_object_show(e);
@@ -134,8 +222,8 @@ elaro_ui_icon_button_add(Evas_Object *parent, const char *asset, const char *too
    button = elaro_ui_button_add(parent, NULL, cb, ui);
    icon = elm_icon_add(button);
    elaro_ui_icon_set(ui, icon, asset);
-   elaro_ui_size_min_set(icon, 22, 22);
-   elaro_ui_size_max_set(icon, 22, 22);
+   elaro_ui_size_min_set(icon, 17, 17);
+   elaro_ui_size_max_set(icon, 17, 17);
    elm_object_part_content_set(button, "icon", icon);
    evas_object_show(icon);
    elm_object_tooltip_text_set(button, tooltip);
@@ -152,9 +240,9 @@ elaro_ui_media_box_add(Evas_Object *popup, const char *url, const char *fallback
    const char *slash, *authority, *at;
 
    box = elm_box_add(popup);
-   elaro_ui_box_padding_set(box, 0, 8);
-   elaro_ui_padding_set(box, 8, 8,
-                                    8, 8);
+   elaro_ui_box_padding_set(box, 0, 6);
+   elaro_ui_padding_set(box, 6, 6,
+                                    6, 6);
    elm_object_content_set(popup, box);
    evas_object_show(box);
 
@@ -274,8 +362,8 @@ elaro_ui_popup_close_button_add(Elaro_Ui *ui, Evas_Object *popup,
    Evas_Object *icon = elm_icon_add(button);
    elaro_ui_window_control_style_set(button, EINA_TRUE);
    elaro_ui_icon_set(ui, icon, "close");
-   elaro_ui_size_min_set(icon, 20, 20);
-   elaro_ui_size_max_set(icon, 20, 20);
+   elaro_ui_size_min_set(icon, 19, 19);
+   elaro_ui_size_max_set(icon, 19, 19);
    elm_object_part_content_set(button, "icon", icon);
    elm_object_tooltip_text_set(button, _("Close"));
    elm_object_access_info_set(button, _("Close"));
@@ -319,7 +407,7 @@ elaro_ui_tabs_add(Evas_Object *parent)
 {
    Evas_Object *tabs = elm_segment_control_add(parent);
    elm_object_style_set(tabs, "default");
-   elaro_ui_size_min_set(tabs, 0, 48);
+   elaro_ui_size_min_set(tabs, 0, 27);
    evas_object_size_hint_weight_set(tabs, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(tabs, EVAS_HINT_FILL, 0.5);
    evas_object_show(tabs);

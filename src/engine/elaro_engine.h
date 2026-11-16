@@ -88,6 +88,7 @@ typedef struct
    char *host, *nick;
    int port;
    bool connected;
+   bool channel_message; /* Channel chat or action, excluding protocol/status events. */
    bool private_message;
    bool mention; /* Incoming channel message mentioning our current nickname. */
    unsigned int transfer_id, request_id;

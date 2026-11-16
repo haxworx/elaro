@@ -3,9 +3,12 @@
 
 #include "elaro_ui.h"
 
-enum { ELARO_UI_INPUT_HEIGHT = 48 };
+enum { ELARO_UI_INPUT_HEIGHT = 36 };
 
 Evas_Object *elaro_ui_entry_add(Evas_Object *parent, Eina_Bool secret);
+
+/* Scroll overflowing text back and forth while the entry is unfocused. */
+void elaro_ui_entry_auto_scroll_enable(Evas_Object *entry);
 
 Eina_Bool
 elaro_ui_icon_set(Elaro_Ui *ui, Evas_Object *icon, const char *asset);

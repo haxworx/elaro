@@ -44,16 +44,11 @@ static const User_Action user_actions[] = {
    { NULL },
    /* Server queries about the user. */
    { N_("WHOIS"), "/whois %s", EINA_FALSE },
-   { N_("WHOWAS"), "/whowas %s", EINA_FALSE },
-   { N_("WHO"), "/who %s", EINA_FALSE },
-   { N_("USERHOST"), "/userhost %s", EINA_FALSE },
    { NULL },
    /* Client-to-client queries. */
    { N_("CTCP VERSION"), "/ctcp %s VERSION", EINA_TRUE },
    { N_("CTCP TIME"), "/ctcp %s TIME", EINA_TRUE },
    { N_("CTCP PING"), "/ping %s", EINA_TRUE },
-   { N_("CTCP CLIENTINFO"), "/ctcp %s CLIENTINFO", EINA_TRUE },
-   { N_("CTCP FINGER"), "/ctcp %s FINGER", EINA_TRUE },
 };
 static void
 _user_selected_cb(void *data, Evas_Object *obj, void *info);
@@ -124,8 +119,8 @@ _user_icon(void *data, Evas_Object *obj, const char *part)
                                   : u->status == '+'               ? "+"
                                                                    : "•");
      }
-   elaro_ui_size_min_set(icon, 20, 20);
-   elaro_ui_size_max_set(icon, 20, 20);
+   elaro_ui_size_min_set(icon, 15, 15);
+   elaro_ui_size_max_set(icon, 15, 15);
    elm_object_tooltip_text_set(icon, role);
 
    return icon;
@@ -329,15 +324,15 @@ _user_tooltip(void *data, Evas_Object *obj, Evas_Object *tooltip, void *item)
    box = elm_box_add(obj);
    u->preview = box;
    evas_object_event_callback_add(box, EVAS_CALLBACK_DEL, _preview_deleted, u);
-   elaro_ui_box_padding_set(box, 0, 6);
+   elaro_ui_box_padding_set(box, 0, 5);
    image = elm_icon_add(box);
    elaro_ui_avatar_placeholder_set(image);
-   elaro_ui_size_min_set(image, 96, 96);
+   elaro_ui_size_min_set(image, 72, 72);
    elm_box_pack_end(box, image);
    evas_object_show(image);
    label = elm_label_add(box);
    elm_label_line_wrap_set(label, ELM_WRAP_WORD);
-   elaro_ui_wrap_width_set(label, 240);
+   elaro_ui_wrap_width_set(label, 180);
    elm_box_pack_end(box, label);
    evas_object_show(label);
    evas_object_data_set(box, "label", label);

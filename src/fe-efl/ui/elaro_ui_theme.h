@@ -99,13 +99,11 @@ _theme_selected(void *data, Evas_Object *obj, void *info)
    if (index < 0 || index >= 4) return;
    ui->config->theme = index;
    _theme_apply(ui);
-   if (ui->buffers) elm_genlist_realized_items_update(ui->buffers);
+   elaro_ui_buffers_recreate(ui);
    if (ui->nicks) elm_genlist_realized_items_update(ui->nicks);
    for (int i = 0; i < 4; i++)
      {
         Evas_Object *button = ui->theme_buttons[i];
-        Evas_Object *mark = button ? evas_object_data_get(button, "theme-mark") : NULL;
-        if (mark) elm_object_text_set(mark, i == index ? _("Selected") : "");
         if (button) elm_object_signal_emit(button, i == index ? "elaro,selected,on" : "elaro,selected,off", "elaro");
      }
    if (!elaro_config_save(ui->config, &error))
@@ -149,7 +147,7 @@ static void
 _frame_grips_update(void *data, Evas *evas, Evas_Object *obj, void *info)
 {
    Elaro_Ui *ui = data;
-   int x, y, w, h, g = ELM_SCALE_SIZE(6);
+   int x, y, w, h, g = ELM_SCALE_SIZE(5);
    evas_object_geometry_get(ui->frame, &x, &y, &w, &h);
    int geometry[8][4] = {
       {x+g,y,w-2*g,g}, {x+g,y+h-g,w-2*g,g},
@@ -273,10 +271,10 @@ _menu_button(Elaro_Ui *ui, Evas_Object *parent, const char *asset,
    Evas_Object *icon = elm_icon_add(row);
    Evas_Object *label = elm_label_add(row);
    elm_box_horizontal_set(row, EINA_TRUE);
-   elaro_ui_box_padding_set(row, 12, 0);
+   elaro_ui_box_padding_set(row, 9, 0);
    elaro_ui_icon_set(ui, icon, asset);
-   elaro_ui_size_min_set(icon, 20, 20);
-   elaro_ui_size_max_set(icon, 20, 20);
+   elaro_ui_size_min_set(icon, 15, 15);
+   elaro_ui_size_max_set(icon, 15, 15);
    elm_object_text_set(label, text);
    evas_object_size_hint_weight_set(label, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(label, 0, 0.5);
@@ -289,7 +287,7 @@ _menu_button(Elaro_Ui *ui, Evas_Object *parent, const char *asset,
    elm_object_content_set(button, row);
    evas_object_size_hint_weight_set(button, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(button, EVAS_HINT_FILL, 0.5);
-   elaro_ui_size_min_set(button, 320, 42);
+   elaro_ui_size_min_set(button, 240, 32);
    return button;
 }
 
@@ -304,7 +302,7 @@ _menu_show(void *data, Evas_Object *obj, void *info)
    elm_object_part_text_set(ui->app_menu, "title,text", _("Elaro"));
    evas_object_smart_callback_add(ui->app_menu, "block,clicked", _menu_close, ui);
    box = elm_box_add(ui->app_menu);
-   elaro_ui_box_padding_set(box, 0, 4);
+   elaro_ui_box_padding_set(box, 0, 3);
    heading = elm_label_add(box);
    elm_object_text_set(heading, _("<b>APPEARANCE</b>"));
    evas_object_size_hint_align_set(heading, 0, 0.5);
@@ -312,20 +310,8 @@ _menu_show(void *data, Evas_Object *obj, void *info)
    evas_object_show(heading);
    for (i = 0; i < 4; i++)
      {
-        Evas_Object *row, *mark;
-        const char *descriptions[] = { N_("Ink blue · cool light"), N_("Warm ivory · ocean blue"),
-                                       N_("Forest green · soft mint"), N_("Charcoal · warm copper") };
-        char *label = elaro_string_printf("<b>%s</b><br/><font_size=10>%s</font_size>",
-                                         theme_labels[i], _(descriptions[i]));
-        button = ui->theme_buttons[i] = _menu_button(ui, box, "theme", label, _theme_selected);
-        free(label);
+        button = ui->theme_buttons[i] = _menu_button(ui, box, "theme", theme_labels[i], _theme_selected);
         evas_object_data_set(button, "theme-index", (void *)(intptr_t)i);
-        row = elm_object_content_get(button);
-        mark = elm_label_add(row);
-        elm_object_text_set(mark, i == ui->config->theme ? _("Selected") : "");
-        elm_box_pack_end(row, mark);
-        evas_object_show(mark);
-        evas_object_data_set(button, "theme-mark", mark);
         if (i == ui->config->theme) elm_object_signal_emit(button, "elaro,selected,on", "elaro");
         elm_box_pack_end(box, button);
      }
@@ -334,6 +320,7 @@ _menu_show(void *data, Evas_Object *obj, void *info)
    evas_object_size_hint_weight_set(separator, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(separator, EVAS_HINT_FILL, 0.5);
    elaro_ui_fixed_height_set(separator, 1);
+   elaro_ui_padding_set(separator, 0, 0, 6, 6);
    evas_object_data_set(ui->app_menu, "separator", separator);
    elm_box_pack_end(box, separator);
    evas_object_show(separator);

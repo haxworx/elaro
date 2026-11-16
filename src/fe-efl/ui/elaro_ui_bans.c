@@ -175,7 +175,7 @@ elaro_ui_bans_show(void *data, Evas_Object *obj, void *info)
    free(title);
    elm_win_autodel_set(b->win, EINA_TRUE);
    box = elaro_ui_window_content_add(b->win);
-   elaro_ui_box_padding_set(box, 0, 8);
+   elaro_ui_box_padding_set(box, 0, 6);
    evas_object_show(box);
    b->status = elm_label_add(box);
    evas_object_size_hint_align_set(b->status, EVAS_HINT_FILL, 0.5);
@@ -212,7 +212,7 @@ elaro_ui_bans_show(void *data, Evas_Object *obj, void *info)
    elm_box_pack_end(buttons, close);
    evas_object_show(close);
    evas_object_event_callback_add(b->win, EVAS_CALLBACK_DEL, _deleted, b);
-   evas_object_resize(b->win, ELM_SCALE_SIZE(540), ELM_SCALE_SIZE(380));
+   evas_object_resize(b->win, ELM_SCALE_SIZE(405), ELM_SCALE_SIZE(285));
    evas_object_show(b->win);
    _request(b, NULL);
    return;

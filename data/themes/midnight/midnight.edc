@@ -6,6 +6,7 @@
 #define EDGE 48 65 91 255
 #define INK 224 233 248 255
 #define ACCENT 123 177 255 255
+#define MENTION 226 190 120 255
 images {
  image: "handle.svg" COMP;
  image: "handle-h.svg" COMP;
@@ -146,19 +147,19 @@ data {
 }
 efl_version: 1 26;
 collections {
-group { name: "elaro/icons/menu"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "menu.svg"; } } } }
-group { name: "elaro/icons/application"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "application.svg"; } } } }
-group { name: "elaro/icons/settings"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "settings.svg"; } } } }
-group { name: "elaro/icons/close"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "close.svg"; } } } }
-group { name: "elaro/icons/minimize"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "minimize.svg"; } } } }
-group { name: "elaro/icons/maximize"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "maximize.svg"; } } } }
-group { name: "elaro/icons/theme"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "theme.svg"; } } } }
-group { name: "elaro/icons/quit"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "quit.svg"; } } } }
-group { name: "elaro/icons/chat"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "chat.svg"; } } } }
-group { name: "elaro/icons/user-available"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "user-available.svg"; } } } }
-group { name: "elaro/icons/user-idle"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "user-idle.svg"; } } } }
-group { name: "elaro/icons/info"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "info.svg"; } } } }
-group { name: "elaro/icons/emblem-important"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "emblem-important.svg"; } } } }
-group { name: "elaro/icons/audio-input-microphone"; min: 20 20; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "audio-input-microphone.svg"; } } } }
+group { name: "elaro/icons/menu"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "menu.svg"; } } } }
+group { name: "elaro/icons/application"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "application.svg"; } } } }
+group { name: "elaro/icons/settings"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "settings.svg"; } } } }
+group { name: "elaro/icons/close"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "close.svg"; } } } }
+group { name: "elaro/icons/minimize"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "minimize.svg"; } } } }
+group { name: "elaro/icons/maximize"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "maximize.svg"; } } } }
+group { name: "elaro/icons/theme"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "theme.svg"; } } } }
+group { name: "elaro/icons/quit"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "quit.svg"; } } } }
+group { name: "elaro/icons/chat"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "chat.svg"; } } } }
+group { name: "elaro/icons/user-available"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "user-available.svg"; } } } }
+group { name: "elaro/icons/user-idle"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "user-idle.svg"; } } } }
+group { name: "elaro/icons/info"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "info.svg"; } } } }
+group { name: "elaro/icons/emblem-important"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "emblem-important.svg"; } } } }
+group { name: "elaro/icons/audio-input-microphone"; min: 15 15; parts { part { name: "icon"; type: IMAGE; mouse_events: 0; description { state: "default" 0.0; aspect: 1 1; aspect_preference: BOTH; image.normal: "audio-input-microphone.svg"; } } } }
 #include "../widgets.edc"
 }

@@ -106,6 +106,22 @@ _buffer_mention(Elaro_Ui_Buffer *b)
    return EINA_FALSE;
 }
 
+/* Genlist reapplies custom states when rows are updated or recycled. */
+static Eina_Bool
+_buffer_state(void *data, Evas_Object *obj, const char *part)
+{
+   Elaro_Ui_Buffer *b = data, *child;
+   Eina_List *node;
+
+   if (!strcmp(part, "mention")) return _buffer_mention(b);
+   if (strcmp(part, "private_unread")) return EINA_FALSE;
+   if (*b->target) return !b->channel && b->unread;
+   if (!elm_genlist_item_expanded_get(b->item))
+      EINA_LIST_FOREACH (b->app->views, node, child)
+         if (child->parent == b && !child->channel && child->unread) return EINA_TRUE;
+   return EINA_FALSE;
+}
+
 void
 elaro_ui_buffer_select(Elaro_Ui_Buffer *b)
 {
@@ -208,12 +224,6 @@ _buffer_text(void *data, Evas_Object *obj, const char *part)
         text = bold;
      }
 
-   if (_buffer_mention(b))
-     {
-        char *highlighted = elaro_string_printf("<color=#e8b866>%s</color>", text);
-        free(text);
-        text = highlighted;
-     }
    return text;
 }
 
@@ -266,8 +276,8 @@ _buffer_control(void *data, Evas_Object *obj, const char *part)
              elm_object_text_set(icon, !strcmp(b->server, "Status") ? "ⓘ"
                                          : b->channel ? "#" : "•");
           }
-        elaro_ui_size_min_set(icon, 20, 20);
-        elaro_ui_size_max_set(icon, 20, 20);
+        elaro_ui_size_min_set(icon, 15, 15);
+        elaro_ui_size_max_set(icon, 15, 15);
         elm_object_tooltip_text_set(icon, _buffer_unread(b)              ? _("Unread messages")
                                           : !strcmp(b->server, "Status") ? _("Status")
                                           : b->away                      ? _("Away")
@@ -290,9 +300,9 @@ _buffer_control(void *data, Evas_Object *obj, const char *part)
      {
         /* Preserve the button's footprint while reducing only its artwork. */
         holder = elm_table_add(button);
-        elaro_ui_size_min_set(holder, 20, 20);
-        elaro_ui_size_min_set(icon, 12, 12);
-        elaro_ui_size_max_set(icon, 12, 12);
+        elaro_ui_size_min_set(holder, 15, 15);
+        elaro_ui_size_min_set(icon, 9, 9);
+        elaro_ui_size_max_set(icon, 9, 9);
         evas_object_size_hint_align_set(icon, 0.5, 0.5);
         elm_table_pack(holder, icon, 0, 0, 1, 1);
         evas_object_show(icon);
@@ -465,6 +475,7 @@ _select_buffer(void *data, Evas_Object *obj, void *info)
    Elaro_Engine_Command *c;
 
    ui = evas_object_data_get(obj, "app");
+   if (evas_object_data_get(obj, "elaro-rebuilding")) return;
    b = data;
    if (!b->parent && !elm_genlist_item_expanded_get(b->item) && b->last_selected)
       b = b->last_selected;
@@ -685,19 +696,13 @@ _buffer_free(void *data)
    free(b);
 }
 
-void
-elaro_ui_buffers_init(Elaro_Ui *ui)
+static void
+_buffers_bind(Elaro_Ui *ui)
 {
    /* The widget must exist before its callbacks are registered. */
    assert(ui->buffers);
    elm_genlist_select_mode_set(ui->buffers, ELM_OBJECT_SELECT_MODE_ALWAYS);
-   ui->views = NULL;
    evas_object_smart_callback_add(ui->buffers, "clicked,right", _buffer_right_clicked_cb, ui);
-   ui->buffer_class = elm_genlist_item_class_new();
-   ui->buffer_class->item_style = "default_style";
-   ui->buffer_class->func.text_get = _buffer_text;
-   ui->buffer_class->func.content_get = _buffer_control;
-   ui->buffer_class->func.del = _buffer_item_deleted;
    /* Row deletion must finish before a close event frees its buffer model. */
    elm_genlist_tree_effect_enabled_set(ui->buffers, EINA_FALSE);
    evas_object_smart_callback_add(ui->buffers, "expand,request", _server_expand_request_cb, ui);
@@ -705,6 +710,56 @@ elaro_ui_buffers_init(Elaro_Ui *ui)
    evas_object_smart_callback_add(ui->buffers, "expanded", _server_expanded_cb, ui);
    evas_object_smart_callback_add(ui->buffers, "realized", _buffer_realized_cb, ui);
    evas_object_smart_callback_add(ui->buffers, "contracted", _server_contracted_cb, ui);
+}
+
+void
+elaro_ui_buffers_init(Elaro_Ui *ui)
+{
+   ui->views = NULL;
+   ui->buffer_class = elm_genlist_item_class_new();
+   ui->buffer_class->item_style = "default_style";
+   ui->buffer_class->func.text_get = _buffer_text;
+   ui->buffer_class->func.state_get = _buffer_state;
+   ui->buffer_class->func.content_get = _buffer_control;
+   ui->buffer_class->func.del = _buffer_item_deleted;
+   _buffers_bind(ui);
+}
+
+void
+elaro_ui_buffers_recreate(Elaro_Ui *ui)
+{
+   Evas_Object *old = ui->buffers;
+   Elaro_Ui_Buffer *b, *selected = NULL;
+   Eina_List *node, *expanded = NULL;
+
+   if (!old || !ui->buffer_class) return;
+   EINA_LIST_FOREACH(ui->views, node, b)
+     {
+        if (b->item && elm_genlist_item_selected_get(b->item)) selected = b;
+        if (!b->parent && b->item && elm_genlist_item_expanded_get(b->item))
+           expanded = eina_list_append(expanded, b);
+     }
+   if (ui->buffer_menu) evas_object_del(ui->buffer_menu);
+   if (ui->buffer_panes) elm_object_part_content_unset(ui->buffer_panes, "left");
+   /* Destroy the item cache as well as all realized row content. */
+   evas_object_del(old);
+   ui->buffers = elm_genlist_add(ui->win);
+   _buffers_bind(ui);
+   elm_genlist_homogeneous_set(ui->buffers, EINA_TRUE);
+   elaro_ui_expand(ui->buffers);
+   evas_object_data_set(ui->buffers, "app", ui);
+   evas_object_data_set(ui->buffers, "elaro-rebuilding", ui);
+   EINA_LIST_FOREACH(ui->views, node, b)
+      if (!b->parent) _buffer_item_append(b);
+   EINA_LIST_FREE(expanded, b)
+      elm_genlist_item_expanded_set(b->item, EINA_TRUE);
+   /* Expansion callbacks can select remembered children. Restore the exact
+    * previous selection without switching conversations or clearing unread. */
+   Elm_Object_Item *item = elm_genlist_selected_item_get(ui->buffers);
+   if (item) elm_genlist_item_selected_set(item, EINA_FALSE);
+   if (selected && selected->item) elm_genlist_item_selected_set(selected->item, EINA_TRUE);
+   evas_object_data_del(ui->buffers, "elaro-rebuilding");
+   if (ui->buffer_panes) elm_object_part_content_set(ui->buffer_panes, "left", ui->buffers);
 }
 
 void
@@ -828,7 +883,8 @@ elaro_ui_buffer_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
         eina_strbuf_append(b->history, safe);
         eina_strbuf_append(b->history, "<br/>");
 
-        if (*b->target && b != ui->current && (!b->unread || (e->mention && !b->mention)))
+        if (*b->target && b != ui->current && (!b->channel || e->channel_message)
+            && (!b->unread || (e->mention && !b->mention)))
           {
              b->unread = EINA_TRUE;
              if (e->mention) b->mention = EINA_TRUE;

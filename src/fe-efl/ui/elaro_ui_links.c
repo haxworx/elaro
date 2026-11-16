@@ -109,12 +109,12 @@ _external_confirm(Elaro_Ui *ui, const char *url)
    elm_object_part_text_set(link->popup, "title,text", _("Open link in browser?"));
 
    box = elm_box_add(link->popup);
-   elaro_ui_box_padding_set(box, 0, 12);
+   elaro_ui_box_padding_set(box, 0, 9);
 
    description = elm_label_add(box);
    elm_object_text_set(description, _("This link will open in your default browser."));
    elm_label_line_wrap_set(description, ELM_WRAP_WORD);
-   elaro_ui_wrap_width_set(description, 360);
+   elaro_ui_wrap_width_set(description, 270);
    evas_object_size_hint_weight_set(description, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(description, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, description);
@@ -126,7 +126,7 @@ _external_confirm(Elaro_Ui *ui, const char *url)
    free(safe);
    /* Long paths and query strings must fit without hiding the destination. */
    elm_label_line_wrap_set(address, ELM_WRAP_CHAR);
-   elaro_ui_wrap_width_set(address, 360);
+   elaro_ui_wrap_width_set(address, 270);
    evas_object_size_hint_weight_set(address, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(address, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, address);
@@ -141,7 +141,7 @@ _external_confirm(Elaro_Ui *ui, const char *url)
 
    link->error = elm_label_add(box);
    elm_label_line_wrap_set(link->error, ELM_WRAP_WORD);
-   elaro_ui_wrap_width_set(link->error, 360);
+   elaro_ui_wrap_width_set(link->error, 270);
    evas_object_size_hint_weight_set(link->error, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(link->error, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, link->error);

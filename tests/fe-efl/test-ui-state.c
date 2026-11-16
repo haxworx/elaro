@@ -676,9 +676,12 @@ int main(int argc, char **argv)
     event.text = "hello <world>";
     elaro_ui_buffer_event(&ui, &event);
     assert(query->unread && ui.current == channel);
+    assert(ui.buffer_class->func.state_get(query, ui.buffers, "private_unread"));
+    assert(!ui.buffer_class->func.state_get(channel, ui.buffers, "private_unread"));
     assert(strstr(eina_strbuf_string_get(query->history), "hello &lt;world&gt;"));
     elm_genlist_item_selected_set(query->item, EINA_TRUE);
     assert(!query->unread && ui.current == query);
+    assert(!ui.buffer_class->func.state_get(query, ui.buffers, "private_unread"));
     assert(!strstr(elm_object_text_get(ui.title), " users)"));
     assert(!strstr(elm_object_text_get(ui.title), " user)"));
     assert(!ui.completion.matches);
@@ -687,6 +690,37 @@ int main(int argc, char **argv)
         ev.modifiers = (Evas_Modifier *)evas_key_modifier_get(evas_object_evas_get(ui.input));
         assert(!elaro_ui_users_complete(&ui, ui.input, &ev));
     }
+    /* Status lines remain in history without marking inactive channels unread. */
+    event.target = channel->target;
+    event.text = "* bob has joined #test";
+    elaro_ui_buffer_event(&ui, &event);
+    assert(!channel->unread && !channel->mention);
+    assert(strstr(eina_strbuf_string_get(channel->history), "bob has joined"));
+    char *status_label = ui.buffer_class->func.text_get(channel, ui.buffers, "elm.text");
+    assert(!strstr(status_label, "<b>"));
+    free(status_label);
+    event.channel_message = true;
+    event.text = "<bob> hello";
+    elaro_ui_buffer_event(&ui, &event);
+    assert(channel->unread && !channel->mention);
+    char *message_label = ui.buffer_class->func.text_get(channel, ui.buffers, "elm.text");
+    assert(strstr(message_label, "<b>"));
+    free(message_label);
+    /* Channel mentions retain their event and clear when the channel is read. */
+    event.target = channel->target;
+    event.mention = true;
+    elaro_ui_buffer_event(&ui, &event);
+    assert(channel->unread && channel->mention);
+    assert(ui.buffer_class->func.state_get(channel, ui.buffers, "mention"));
+    assert(!ui.buffer_class->func.state_get(channel, ui.buffers, "private_unread"));
+    char *mention_label = ui.buffer_class->func.text_get(channel, ui.buffers, "elm.text");
+    assert(!strstr(mention_label, "<color="));
+    free(mention_label);
+    elaro_ui_buffer_select(channel);
+    assert(!ui.buffer_class->func.state_get(channel, ui.buffers, "mention"));
+    elaro_ui_buffer_select(query);
+    event.target = "alice";
+    event.mention = false;
     event.type = ELARO_ENGINE_BUFFER_CLOSED;
     elaro_ui_buffer_event(&ui, &event);
     /* Closing the last row selects the previous conversation. */
@@ -801,7 +835,7 @@ int main(int argc, char **argv)
         for (unsigned int i = 0; i < EINA_C_ARRAY_LENGTH(targets); i++) {
             Elaro_Ui_Buffer *inactive = elaro_ui_buffer_get(&ui, "close-click", targets[i]);
             inactive->channel = i == 1;
-            Elaro_Engine_Event event = { .type = ELARO_ENGINE_LINE,
+            Elaro_Engine_Event event = { .type = ELARO_ENGINE_LINE, .channel_message = true,
                 .server = "close-click", .target = (char *)targets[i], .text = "unread message" };
             elaro_ui_buffer_event(&ui, &event);
             assert(inactive->unread);
@@ -899,18 +933,36 @@ int main(int argc, char **argv)
         elaro_ui_buffer_event(&ui, &line);
         hidden = elaro_ui_buffer_get(&ui, "test", "hidden-query");
         assert(hidden->parent == server && !hidden->item && hidden->unread);
+        assert(ui.buffer_class->func.state_get(server, ui.buffers, "private_unread"));
         assert(strstr(eina_strbuf_string_get(hidden->history), "a hidden message"));
         assert(!elm_genlist_item_expanded_get(server->item));
         line.mention = true;
         elaro_ui_buffer_event(&ui, &line); /* Escalate an already unread row. */
         assert(hidden->mention);
+        /* Theme changes replace the widget, retaining collapsed conversations
+         * and their unread state without submitting a selection command. */
+        for (int rebuild = 0; rebuild < 3; rebuild++) {
+            Evas_Object *old_list = ui.buffers;
+            elaro_ui_buffers_recreate(&ui);
+            assert(ui.buffers != old_list);
+            assert(ui.current == active && submitted == count);
+            assert(!elm_genlist_item_expanded_get(server->item));
+            assert(!active->item && !hidden->item);
+            assert(hidden->mention && hidden->unread);
+            assert(elm_genlist_item_expanded_get(other->parent->item));
+            assert(other->item);
+            assert(!strcmp(elm_entry_entry_get(ui.input), "keep this draft"));
+        }
         char *label = ui.buffer_class->func.text_get(server, ui.buffers, "elm.text");
-        assert(strstr(label, "#e8b866") && strstr(label, "<b>"));
+        assert(!strstr(label, "<color=") && strstr(label, "<b>"));
+        assert(ui.buffer_class->func.state_get(server, ui.buffers, "mention"));
         free(label);
         elaro_ui_buffer_select(hidden);
         assert(!hidden->mention && !hidden->unread);
+        assert(!ui.buffer_class->func.state_get(server, ui.buffers, "private_unread"));
         label = ui.buffer_class->func.text_get(server, ui.buffers, "elm.text");
-        assert(!strstr(label, "#e8b866"));
+        assert(!strstr(label, "<color="));
+        assert(!ui.buffer_class->func.state_get(server, ui.buffers, "mention"));
         free(label);
         elaro_ui_buffer_select(active);
         elm_genlist_item_expanded_set(server->item, EINA_FALSE);
@@ -919,6 +971,12 @@ int main(int argc, char **argv)
         count = submitted;
         evas_object_smart_callback_call(ui.buffers, "expand,request", server->item);
         assert(ui.current == active && active->item && hidden->item);
+        elaro_ui_buffers_recreate(&ui);
+        assert(ui.current == active && submitted == count);
+        assert(elm_genlist_item_expanded_get(server->item));
+        assert(elm_genlist_item_selected_get(active->item));
+        assert(hidden->item);
+
         assert(elm_genlist_item_selected_get(active->item));
         assert(submitted == count);
         assert(eina_hash_population(ui.users) == 2);
@@ -1163,6 +1221,32 @@ int main(int argc, char **argv)
         assert(!eina_hash_population(ui.users));
         assert(!elm_genlist_first_item_get(ui.nicks));
         assert(!ui.completion.matches && !ui.completion.text);
+    }
+    /* Overflowing topics move while idle. Replacing the topic with short
+     * text resets the offset. Deleting the entry also removes its timer. */
+    {
+        Evas_Object *window = elm_win_util_standard_add("topic-scroll", "Topic");
+        Evas_Object *entry = elaro_ui_entry_add(window, EINA_FALSE);
+        elm_win_resize_object_add(window, entry);
+        evas_object_resize(window, 240, 60);
+        evas_object_show(entry);
+        evas_object_show(window);
+        elm_entry_entry_set(entry,
+            "A long channel topic that extends well beyond the available width of the window");
+        elaro_ui_entry_auto_scroll_enable(entry);
+        elm_object_focus_set(entry, EINA_FALSE);
+        ecore_timer_add(2.2, layout_done, NULL);
+        ecore_main_loop_begin();
+        int x;
+        elm_scroller_region_get(entry, &x, NULL, NULL, NULL);
+        assert(x > 0);
+        elm_entry_entry_set(entry, "Short topic");
+        elm_object_focus_set(entry, EINA_FALSE);
+        ecore_timer_add(0.2, layout_done, NULL);
+        ecore_main_loop_begin();
+        elm_scroller_region_get(entry, &x, NULL, NULL, NULL);
+        assert(x == 0);
+        evas_object_del(window);
     }
     elaro_ui_users_shutdown(&ui);
     elaro_ui_buffers_shutdown(&ui);

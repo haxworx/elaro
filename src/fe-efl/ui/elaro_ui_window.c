@@ -11,13 +11,13 @@ void
 elaro_ui_window_control_style_set(Evas_Object *button, Eina_Bool close)
 {
    elm_object_style_set(button, close ? "elaro/window-close" : "elaro/window-control");
-   elaro_ui_size_min_set(button, 32, 32);
-   elaro_ui_size_max_set(button, 32, 32);
+   elaro_ui_size_min_set(button, 30, 30);
+   elaro_ui_size_max_set(button, 30, 30);
    Evas_Object *icon = elm_object_part_content_get(button, "icon");
    if (icon)
      {
-        elaro_ui_size_min_set(icon, 20, 20);
-        elaro_ui_size_max_set(icon, 20, 20);
+        elaro_ui_size_min_set(icon, 19, 19);
+        elaro_ui_size_max_set(icon, 19, 19);
      }
 }
 static const Elm_Win_Move_Resize_Mode resize_modes[] = {
@@ -57,7 +57,7 @@ static void
 _window_grips_update(void *data, Evas *evas, Evas_Object *obj, void *info)
 {
    Window_Frame *frame = data;
-   int x, y, w, h, g = ELM_SCALE_SIZE(4);
+   int x, y, w, h, g = ELM_SCALE_SIZE(3);
    evas_object_geometry_get(frame->frame, &x, &y, &w, &h);
    int geometry[8][4] = {
       {x+g,y,w-2*g,g}, {x+g,y+h-g,w-2*g,g},
@@ -143,16 +143,16 @@ elaro_ui_window_content_add(Evas_Object *win)
    evas_object_size_hint_align_set(frame->root, EVAS_HINT_FILL, EVAS_HINT_FILL);
    elm_object_part_content_set(frame->frame, "elaro.content", frame->root);
    Evas_Object *header = elm_table_add(frame->root);
-   elm_table_padding_set(header, ELM_SCALE_SIZE(6), 0);
+   elm_table_padding_set(header, ELM_SCALE_SIZE(5), 0);
    evas_object_size_hint_weight_set(header, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(header, EVAS_HINT_FILL, 0.5);
-   elaro_ui_fixed_height_set(header, 36);
+   elaro_ui_fixed_height_set(header, 33);
    elm_box_pack_end(frame->root, header);
    Evas_Object *drag = evas_object_rectangle_add(evas_object_evas_get(win));
    evas_object_color_set(drag, 0, 0, 0, 0);
    evas_object_size_hint_weight_set(drag, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
    evas_object_size_hint_align_set(drag, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   elaro_ui_size_min_set(drag, 80, 32);
+   elaro_ui_size_min_set(drag, 60, 24);
    elm_table_pack(header, drag, 0, 0, 1, 1);
    evas_object_event_callback_add(drag, EVAS_CALLBACK_MOUSE_DOWN, _window_move, win);
    evas_object_show(drag);
@@ -177,8 +177,8 @@ elaro_ui_window_content_add(Evas_Object *win)
         char group[64];
         snprintf(group, sizeof(group), "elaro/icons/%s", window_icons[i]);
         elm_image_file_set(frame->icons[i], path, group);
-        elaro_ui_size_min_set(frame->icons[i], 20, 20);
-        elaro_ui_size_max_set(frame->icons[i], 20, 20);
+        elaro_ui_size_min_set(frame->icons[i], 19, 19);
+        elaro_ui_size_max_set(frame->icons[i], 19, 19);
         elm_object_part_content_set(button, "icon", frame->icons[i]);
         elm_object_tooltip_text_set(button, tooltips[i]);
         elm_object_access_info_set(button, tooltips[i]);
@@ -189,7 +189,7 @@ elaro_ui_window_content_add(Evas_Object *win)
         evas_object_data_set(win, window_icons[i], button);
      }
    elm_box_pack_end(frame->root, body);
-   elaro_ui_padding_set(body, 8, 8, 6, 8);
+   elaro_ui_padding_set(body, 6, 6, 5, 6);
    evas_object_show(header);
    evas_object_show(frame->root);
    evas_object_show(frame->frame);

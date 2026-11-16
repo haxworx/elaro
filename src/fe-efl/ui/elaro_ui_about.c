@@ -96,15 +96,15 @@ elaro_ui_about_show(void *data, Evas_Object *obj, void *info)
    evas_object_event_callback_add(ui->about, EVAS_CALLBACK_DEL, _about_deleted_cb, ui);
 
    box = elm_box_add(ui->about);
-   elaro_ui_box_padding_set(box, 0, 14);
-   elaro_ui_padding_set(box, 12, 12,
-                                     12, 12);
+   elaro_ui_box_padding_set(box, 0, 11);
+   elaro_ui_padding_set(box, 9, 9,
+                                     9, 9);
    elm_object_content_set(ui->about, box);
    evas_object_show(box);
 
    hero = elm_layout_add(box);
    if (ui->theme_path) elm_layout_file_set(hero, ui->theme_path, "elaro/about/hero");
-   elaro_ui_size_min_set(hero, 420, 174);
+   elaro_ui_size_min_set(hero, 315, 131);
    evas_object_size_hint_weight_set(hero, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(hero, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, hero);
@@ -132,11 +132,11 @@ elaro_ui_about_show(void *data, Evas_Object *obj, void *info)
    viewport = elm_table_add(box);
    evas_object_size_hint_weight_set(viewport, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(viewport, EVAS_HINT_FILL, 0.5);
-   elaro_ui_size_max_set(viewport, -1, 160);
+   elaro_ui_size_max_set(viewport, -1, 120);
    reserve = evas_object_rectangle_add(evas_object_evas_get(viewport));
    evas_object_color_set(reserve, 0, 0, 0, 0);
    evas_object_pass_events_set(reserve, EINA_TRUE);
-   elaro_ui_size_min_set(reserve, 420, 160);
+   elaro_ui_size_min_set(reserve, 315, 120);
    elm_table_pack(viewport, reserve, 0, 0, 1, 1);
    evas_object_show(reserve);
    elm_box_pack_end(box, viewport);
@@ -158,7 +158,7 @@ elaro_ui_about_show(void *data, Evas_Object *obj, void *info)
 
    footer = elm_box_add(box);
    elm_box_horizontal_set(footer, EINA_TRUE);
-   elaro_ui_box_padding_set(footer, 12, 0);
+   elaro_ui_box_padding_set(footer, 9, 0);
    evas_object_size_hint_weight_set(footer, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(footer, EVAS_HINT_FILL, 0.5);
    elm_box_pack_end(box, footer);

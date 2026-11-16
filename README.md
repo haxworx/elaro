@@ -57,10 +57,9 @@ Use `/quit Gone fishing` to send a custom quit message when disconnecting from
 the current server; `/quit` on its own sends `Leaving`.
 Closing a server disconnects it and closes all of its channels and private chats.
 
-The application menu shows all four themes under **Appearance**: Midnight
-(ink blue), Porcelain (warm ivory), Verdigris (deep green), and Ember (charcoal
-and copper). Click a theme to apply and save it immediately; **Selected** marks
-the current choice. The menu also contains **About Elaro** and **Quit**.
+The application menu shows all four themes under **Appearance**: Midnight,
+Porcelain, Verdigris, and Ember. Click a theme to apply and save it immediately;
+the current choice is highlighted. The menu also contains **About Elaro** and **Quit**.
 About has artwork for the current theme and separate **Overview**, **Credits**,
 and **License** pages.
 

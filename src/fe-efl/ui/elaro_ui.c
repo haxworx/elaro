@@ -142,7 +142,7 @@ _shadow_add(Evas_Object *parent, const char *group)
    free(path);
    elm_object_focus_allow_set(shadow, EINA_FALSE);
    evas_object_pass_events_set(shadow, EINA_TRUE);
-   elaro_ui_size_min_set(shadow, 0, 6);
+   elaro_ui_size_min_set(shadow, 0, 5);
    evas_object_size_hint_weight_set(shadow, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(shadow, EVAS_HINT_FILL, 0);
    evas_object_show(shadow);
@@ -246,9 +246,9 @@ elaro_ui_run(int argc, char **argv)
    bar = elm_box_add(ui.win);
    elm_box_horizontal_set(bar, EINA_TRUE);
    elm_box_align_set(bar, 0, 0.5);
-   elaro_ui_box_padding_set(bar, 6, 0);
-   elaro_ui_padding_set(bar, 6, 6, 4,
-                                     4);
+   elaro_ui_box_padding_set(bar, 5, 0);
+   elaro_ui_padding_set(bar, 5, 5, 3,
+                                     3);
    evas_object_size_hint_weight_set(bar, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(bar, EVAS_HINT_FILL, 0);
    elm_box_pack_end(box, bar);
@@ -266,7 +266,7 @@ elaro_ui_run(int argc, char **argv)
    elm_object_text_set(icon, "<b>ELARO</b>");
    evas_object_size_hint_weight_set(icon, 0, 0);
    evas_object_size_hint_align_set(icon, 0, 0.5);
-   elaro_ui_size_min_set(icon, 0, 38);
+   elaro_ui_size_min_set(icon, 0, 29);
    elm_box_pack_end(bar, icon);
    evas_object_show(icon);
    elm_box_pack_end(bar, elaro_ui_bans_heading_add(&ui, bar));
@@ -276,7 +276,7 @@ elaro_ui_run(int argc, char **argv)
    evas_object_color_set(icon, 0, 0, 0, 0);
    evas_object_size_hint_weight_set(icon, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
    evas_object_size_hint_align_set(icon, EVAS_HINT_FILL, EVAS_HINT_FILL);
-   elaro_ui_size_min_set(icon, 40, 38);
+   elaro_ui_size_min_set(icon, 30, 29);
    evas_object_event_callback_add(icon, EVAS_CALLBACK_MOUSE_DOWN, _frame_move, &ui);
    elm_box_pack_end(bar, icon);
    evas_object_show(icon);
@@ -316,6 +316,7 @@ elaro_ui_run(int argc, char **argv)
    ui.topic = elaro_ui_entry_add(conversation, EINA_FALSE);
    elm_entry_single_line_set(ui.topic, EINA_TRUE);
    elm_entry_scrollable_set(ui.topic, EINA_TRUE);
+   elaro_ui_entry_auto_scroll_enable(ui.topic);
    elm_object_part_text_set(ui.topic, "guide", _("Topic — Enter to set"));
    evas_object_size_hint_weight_set(ui.topic, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(ui.topic, EVAS_HINT_FILL, 0.5);

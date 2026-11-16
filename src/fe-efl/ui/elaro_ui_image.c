@@ -89,8 +89,8 @@ elaro_ui_image_preview(Elaro_Ui *ui, const char *url)
    evas_object_color_set(size, 0, 0, 0, 0);
    evas_object_pass_events_set(size, EINA_TRUE);
    elaro_ui_size_min_set(size,
-                                 MIN(520, MAX(100, width - 136)),
-                                 MIN(360, MAX(100, height - 300)));
+                                 MIN(390, MAX(75, width - 102)),
+                                 MIN(270, MAX(75, height - 225)));
    elm_table_pack(viewport, size, 0, 0, 1, 1);
    evas_object_show(size);
 
@@ -108,7 +108,7 @@ elaro_ui_image_preview(Elaro_Ui *ui, const char *url)
    evas_object_size_hint_weight_set(status, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(status, EVAS_HINT_FILL, 0.5);
    /* Span sizes are logical pixels; Elementary applies the UI scale itself. */
-   elm_progressbar_span_size_set(status, 180);
+   elm_progressbar_span_size_set(status, 135);
    elm_progressbar_unit_format_set(status, "%.0f%%");
    elm_object_text_set(status, _("Loading image…"));
    /* Keep pulse and fraction widgets separate so theme animation state cannot leak. */

@@ -130,7 +130,7 @@ _transfer_window_add(Elaro_Ui *ui, unsigned int id, const char *server, const ch
    eina_hash_add(ui->dcc.windows, &t->id, t);
 
    box = elaro_ui_window_content_add(t->win);
-   elm_box_padding_set(box, 6, 8);
+   elm_box_padding_set(box, 5, 6);
 
    details = elm_label_add(box);
    description = t->outgoing ? elaro_string_printf(_("Send a file to %s on %s"), nick, server)
@@ -204,7 +204,7 @@ _transfer_window_add(Elaro_Ui *ui, unsigned int id, const char *server, const ch
    evas_object_show(t->cancel);
    elm_box_pack_end(box, buttons);
    evas_object_show(buttons);
-   evas_object_resize(t->win, 560, 320);
+   evas_object_resize(t->win, 420, 240);
    evas_object_show(t->win);
    return;
 

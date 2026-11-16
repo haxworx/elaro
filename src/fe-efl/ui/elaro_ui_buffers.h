@@ -23,6 +23,9 @@ elaro_ui_topic_apply(void *data, Evas_Object *obj, void *info);
 /* Register item classes and callbacks after creating the buffers genlist. */
 void
 elaro_ui_buffers_init(Elaro_Ui *ui);
+/* Replace the widget and its theme cache while retaining conversation state. */
+void
+elaro_ui_buffers_recreate(Elaro_Ui *ui);
 void
 elaro_ui_buffers_shutdown(Elaro_Ui *ui);
 

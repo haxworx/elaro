@@ -223,7 +223,7 @@ _show(Elaro_Ui *ui, const char *server)
    free(title);
    elm_win_autodel_set(b->win, EINA_TRUE);
    box = b->box = elaro_ui_window_content_add(b->win);
-   elaro_ui_box_padding_set(box, 0, 8);
+   elaro_ui_box_padding_set(box, 0, 6);
    evas_object_show(box);
    b->progress = elm_progressbar_add(box);
    evas_object_size_hint_weight_set(b->progress, EVAS_HINT_EXPAND, 0);
@@ -265,7 +265,7 @@ _show(Elaro_Ui *ui, const char *server)
    elm_box_pack_end(buttons, close);
    evas_object_show(close);
    evas_object_event_callback_add(b->win, EVAS_CALLBACK_DEL, _deleted, b);
-   evas_object_resize(b->win, ELM_SCALE_SIZE(640), ELM_SCALE_SIZE(460));
+   evas_object_resize(b->win, ELM_SCALE_SIZE(480), ELM_SCALE_SIZE(345));
    evas_object_show(b->win);
    _refresh(b, NULL, NULL);
    return;

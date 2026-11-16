@@ -130,6 +130,7 @@ int main(int argc, char **argv)
         if (event->type == ELARO_ENGINE_LINE) {
             g_assert_null(strchr(event->text, '\001'));
             if (event->mention) {
+                g_assert_true(event->channel_message);
                 g_assert_cmpstr(event->target, ==, "#test");
                 g_assert_true(!strcmp(event->text, "<alice> tester: hello") ||
                               !strcmp(event->text, "<alice> hey TESTER!") ||
@@ -145,6 +146,7 @@ int main(int argc, char **argv)
             }
             if (!strcmp(event->text, "* alice waves")) {
                 g_assert_cmpstr(event->target, ==, "#test");
+                g_assert_true(event->channel_message);
                 g_assert_false(event->private_message); actions++;
             }
             if (!strcmp(event->text, "* alice smiles")) {
@@ -159,11 +161,15 @@ int main(int argc, char **argv)
                 !strcmp(event->text, "* david has quit (Gone fishing)") ||
                 !strcmp(event->text, "* eve has quit")) {
                 g_assert_cmpstr(event->target, ==, "#test");
+                g_assert_false(event->channel_message);
                 g_assert_false(event->private_message); nick_quit++;
             }
             if (!strcmp(event->text, "* carol has joined #test") ||
                 !strcmp(event->text, "* carol has left #test") ||
-                !strcmp(event->text, "* bob has left #test (Leaving)")) membership++;
+                !strcmp(event->text, "* bob has left #test (Leaving)")) {
+                g_assert_false(event->channel_message);
+                membership++;
+            }
             const char *prefix = "CTCP PING reply from alice: ";
             if (g_str_has_prefix(event->text, prefix)) {
                 g_assert_false(event->private_message);

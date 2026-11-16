@@ -20,7 +20,7 @@ _options_group_add(Evas_Object *parent, const char *title)
    evas_object_size_hint_align_set(frame, EVAS_HINT_FILL, 0);
    box = elm_box_add(frame);
    elm_box_align_set(box, 0, 0);
-   elaro_ui_box_padding_set(box, 0, 6);
+   elaro_ui_box_padding_set(box, 0, 5);
    elm_object_content_set(frame, box);
    elm_box_pack_end(parent, frame);
    evas_object_show(box);
@@ -138,7 +138,7 @@ elaro_ui_options_add(Elaro_Ui *ui, Evas_Object *parent)
 
    ui->connection.options_error = elm_label_add(options_box);
    elm_label_line_wrap_set(ui->connection.options_error, ELM_WRAP_WORD);
-   elaro_ui_wrap_width_set(ui->connection.options_error, 340);
+   elaro_ui_wrap_width_set(ui->connection.options_error, 255);
    elm_box_pack_end(options_box, ui->connection.options_error);
    evas_object_show(ui->connection.options_error);
 }

@@ -32,8 +32,8 @@ _button_icon_set(Evas_Object *button, const char *name, const char *label)
    if (current && !strcmp(current, name)) return;
 
    elm_icon_standard_set(icon, name);
-   elaro_ui_size_min_set(icon, 20, 20);
-   elaro_ui_size_max_set(icon, 20, 20);
+   elaro_ui_size_min_set(icon, 15, 15);
+   elaro_ui_size_max_set(icon, 15, 15);
    elm_object_tooltip_text_set(button, label);
    elm_object_access_info_set(button, label);
 }
@@ -393,7 +393,7 @@ elaro_ui_music_show(Elaro_Ui *ui, const char *url)
    elm_slider_indicator_show_set(music->seek, EINA_FALSE);
 
    /* Span sizes are scaled by Elementary, unlike Evas size hints. */
-   elm_slider_span_size_set(music->seek, 240);
+   elm_slider_span_size_set(music->seek, 180);
    evas_object_size_hint_weight_set(music->seek, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(music->seek, EVAS_HINT_FILL, 0.5);
    elm_object_disabled_set(music->seek, EINA_TRUE);
@@ -409,7 +409,7 @@ elaro_ui_music_show(Elaro_Ui *ui, const char *url)
    evas_object_show(music->time);
    controls = music->controls = elm_box_add(box);
    elm_box_horizontal_set(controls, EINA_TRUE);
-   elaro_ui_box_padding_set(controls, 12, 0);
+   elaro_ui_box_padding_set(controls, 9, 0);
 
    music->play = elm_button_add(controls);
    _button_icon_set(music->play, "media-playback-pause", _("Pause"));
@@ -427,7 +427,7 @@ elaro_ui_music_show(Elaro_Ui *ui, const char *url)
    elm_slider_min_max_set(volume, 0, 100);
    elm_slider_value_set(volume, 100.0);
    elm_slider_unit_format_set(volume, "%.0f%%");
-   elm_slider_span_size_set(volume, 100);
+   elm_slider_span_size_set(volume, 75);
    evas_object_smart_callback_add(volume, "changed", _music_volume_cb, music);
    elm_box_pack_end(controls, volume);
    evas_object_show(volume);
@@ -437,7 +437,7 @@ elaro_ui_music_show(Elaro_Ui *ui, const char *url)
    music->status = elm_progressbar_add(box);
    evas_object_size_hint_weight_set(music->status, EVAS_HINT_EXPAND, 0);
    evas_object_size_hint_align_set(music->status, EVAS_HINT_FILL, 0.5);
-   elm_progressbar_span_size_set(music->status, 180);
+   elm_progressbar_span_size_set(music->status, 135);
    elm_progressbar_unit_format_set(music->status, "");
    music->data_handler = ecore_event_handler_add(ECORE_EXE_EVENT_DATA, _music_data_cb, music);
    music->exit_handler = ecore_event_handler_add(ECORE_EXE_EVENT_DEL, _music_exit_cb, music);
