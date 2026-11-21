@@ -6,7 +6,6 @@
 #define EDGE 87 56 60 255
 #define INK 249 230 215 255
 #define ACCENT 244 169 111 255
-#define MENTION 230 151 174 255
 images {
  image: "handle.svg" COMP;
  image: "handle-h.svg" COMP;
@@ -30,6 +29,7 @@ images {
  image: "audio-input-microphone.svg" COMP;
 }
 data {
+ item: "/fg/normal/entry/mention" "230 151 174 255";
  item: "/fg/normal/entry/text" "249 230 215 255";
  item: "/fg/normal/entry/text/guide" "163 148 141 255";
  item: "/fg/normal/popup/text" "249 230 215 255";

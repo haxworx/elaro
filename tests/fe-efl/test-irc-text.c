@@ -25,6 +25,13 @@ int main(void)
     g_assert_false(elaro_ui_text_image_url_check("https://example.org/page?image=a.png"));
     check("https://example.org/page?a=1&b=2", "<a href=url:https%3A%2F%2Fexample.org%2Fpage%3Fa%3D1%26b%3D2>https://example.org/page?a=1&amp;b=2</a>");
     check("file:///tmp/test", "file:///tmp/test");
+    const char *message = "<Alice> ALICE, \002alice\002 alice2 https://example.org/alice";
+    char *markup = elaro_ui_text_message_markup(message, strlen("<Alice> "), "Alice",
+                                                g_ascii_strcasecmp);
+    g_assert_cmpstr(markup, ==, "&lt;Alice&gt; <mention>ALICE</mention>, "
+                   "<b><mention>alice</mention></b> alice2 "
+                   "<a href=url:https%3A%2F%2Fexample.org%2Falice>https://example.org/alice</a>");
+    g_free(markup);
     check("(https://example.org/wiki/Test_(example)).", "(<a href=url:https%3A%2F%2Fexample.org%2Fwiki%2FTest_%28example%29>https://example.org/wiki/Test_(example)</a>).");
     check("https://example.org/song.MP3?download=1&token=abc", "<a href=audio:https%3A%2F%2Fexample.org%2Fsong.MP3%3Fdownload%3D1%26token%3Dabc>https://example.org/song.MP3?download=1&amp;token=abc</a>");
     g_assert_true(elaro_ui_text_audio_url_check("https://example.org/music.flac#track"));

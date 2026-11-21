@@ -256,6 +256,12 @@ int main(int argc, char **argv)
         state.connected = false;
         elaro_ui_buffer_event(&ui, &state);
         assert(!server->connected && ui.current == channel);
+        Elaro_Engine_Event disconnect = { .type = ELARO_ENGINE_LINE,
+            .server = "test", .target = "", .text = "Disconnected", .disconnected = true };
+        elaro_ui_buffer_event(&ui, &disconnect);
+        assert(strstr(eina_strbuf_string_get(server->history), "Disconnected"));
+        assert(strstr(eina_strbuf_string_get(channel->history), "Disconnected"));
+        assert(ui.current == channel);
     }
 
 

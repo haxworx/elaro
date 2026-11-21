@@ -52,6 +52,9 @@ int main(void)
     g_free(second->host); second->host = g_strdup("irc.example.org");
     second->port = 6667; second->tls = FALSE;
     c->connections = eina_list_append(c->connections, second);
+    c->last_connected_host = g_strdup(second->host);
+    c->last_connected_nick = g_strdup(second->nick);
+    c->last_connected_port = second->port;
     g_assert_true(elaro_config_save(c, &error));
     g_assert_cmpint(error, ==, 0);
     elaro_config_free(c);
@@ -75,6 +78,9 @@ int main(void)
     g_assert_cmpstr(second->host, ==, "irc.example.org");
     g_assert_cmpint(second->port, ==, 6667);
     g_assert_false(second->tls);
+    g_assert_cmpstr(c->last_connected_host, ==, second->host);
+    g_assert_cmpstr(c->last_connected_nick, ==, second->nick);
+    g_assert_cmpint(c->last_connected_port, ==, second->port);
     g_assert_cmpstr(c->nick, ==, "SavedNick");
     g_assert_cmpstr(c->channels, ==, "#one,#two");
     g_assert_cmpstr(c->password, ==, "server<&password>");

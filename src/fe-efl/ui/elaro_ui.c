@@ -1,6 +1,37 @@
 #include "elaro_ui_private.h"
 #include <locale.h>
 
+static void
+_last_connected_save(Elaro_Config *config, const Elaro_Engine_Event *event)
+{
+   char *host, *nick;
+   Eina_Error error;
+
+   if (!event->host || !event->nick) return;
+   if (config->last_connected_host && config->last_connected_nick
+       && config->last_connected_port == event->port
+       && !strcasecmp(config->last_connected_host, event->host)
+       && !strcasecmp(config->last_connected_nick, event->nick))
+      return;
+
+   host = strdup(event->host);
+   nick = strdup(event->nick);
+   if (!host || !nick)
+     {
+        free(host);
+        free(nick);
+        return;
+     }
+
+   free(config->last_connected_host);
+   free(config->last_connected_nick);
+   config->last_connected_host = host;
+   config->last_connected_nick = nick;
+   config->last_connected_port = event->port;
+   if (!elaro_config_save(config, &error))
+      EINA_LOG_WARN("%s", eina_error_msg_get(error));
+}
+
 static Eina_Bool
 _receive_events_cb(void *data, Ecore_Fd_Handler *handler)
 {
@@ -39,6 +70,10 @@ _receive_events_cb(void *data, Ecore_Fd_Handler *handler)
           case ELARO_ENGINE_PRESENCE_RESET:
              elaro_ui_users_presence(ui, event);
              elaro_ui_buffer_event(ui, event);
+             break;
+          case ELARO_ENGINE_CONNECTION:
+             elaro_ui_buffer_event(ui, event);
+             if (event->connected) _last_connected_save(ui->config, event);
              break;
           case ELARO_ENGINE_NICKS:
 

@@ -295,7 +295,7 @@ static void
 _menu_show(void *data, Evas_Object *obj, void *info)
 {
    Elaro_Ui *ui = data;
-   Evas_Object *box, *heading, *button;
+   Evas_Object *box, *heading, *button, *spacer;
    int i;
    if (ui->app_menu) { evas_object_show(ui->app_menu); return; }
    ui->app_menu = elm_popup_add(ui->win);
@@ -330,11 +330,17 @@ _menu_show(void *data, Evas_Object *obj, void *info)
    button = _menu_button(ui, box, "settings", _("Settings"), _menu_settings);
    elm_box_pack_end(box, button);
    evas_object_data_set(ui->app_menu, "settings", button);
+   spacer = elm_separator_add(box);
+   elm_separator_horizontal_set(spacer, EINA_TRUE);
+   evas_object_size_hint_weight_set(spacer, EVAS_HINT_EXPAND, 0);
+   evas_object_size_hint_align_set(spacer, EVAS_HINT_FILL, 0.5);
+   elaro_ui_fixed_height_set(spacer, 1);
+   elaro_ui_padding_set(spacer, 0, 0, 6, 6);
+   elm_box_pack_end(box, spacer);
+   evas_object_show(spacer);
    button = _menu_button(ui, box, "application", _("About Elaro"), _menu_about);
    elm_box_pack_end(box, button);
    evas_object_data_set(ui->app_menu, "about", button);
-   button = _menu_button(ui, box, "quit", _("Quit"), _close_window_cb);
-   elm_box_pack_end(box, button);
    elm_object_content_set(ui->app_menu, box);
    evas_object_show(box);
    elaro_ui_popup_close_button_add(ui, ui->app_menu, _menu_close, ui);

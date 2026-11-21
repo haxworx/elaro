@@ -362,7 +362,7 @@ group { name: "elm/genlist/item/default/default";
          description { state: "default" 0.0; offset_scale: 1;
             rel1 { to_x: "elm.swallow.icon"; relative: 1 1; offset: 6 -5; }
             rel2 { relative: 1 1; offset: -34 -4; }
-            color: MENTION;
+            color_class: "/fg/normal/entry/mention";
          }
       }
       part { name: "elm.text"; type: TEXTBLOCK; scale: 1; mouse_events: 0;
@@ -593,6 +593,7 @@ group { name: "elm/entry/base-noedit-mixedwrap/elaro/history";
    tag: "em" "+ font_style=Italic";
    tag: "hilight" "+ font_weight=Bold";
    tag: "link" "+ underline=on underline_color=cc:/fg/normal/entry/anchor";
+   tag: "mention" "+ color=cc:/fg/normal/entry/mention";
   }
  }
  parts {

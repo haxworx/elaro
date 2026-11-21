@@ -172,9 +172,12 @@ int main(int argc, char **argv)
         elaro_ui_connection_show(&ui, NULL, NULL);
         assert(ui.connection.selected == first);
         ui.current = NULL;
-        /* Restore the second selection for the deletion scenario below. */
-        elm_genlist_item_selected_set(elm_genlist_item_next_get(
-            elm_genlist_first_item_get(ui.connection.saved)), EINA_TRUE);
+        _popup_closed_cb(&ui, NULL, NULL);
+        ui.config->last_connected_host = strdup(second->host);
+        ui.config->last_connected_nick = strdup(second->nick);
+        ui.config->last_connected_port = second->port;
+        elaro_ui_connection_show(&ui, NULL, NULL);
+        assert(ui.connection.selected == second);
     }
     _saved_delete_cb(&ui, NULL, NULL);
     check_profiles(&ui, 1);

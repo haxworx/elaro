@@ -85,6 +85,13 @@ _save_clicked_cb(void *data, Evas_Object *obj, void *info)
    c = calloc(1, sizeof(Elaro_Config));
    if (!c) goto allocation_failed;
    c->version = ELARO_CONFIG_VERSION;
+   c->last_connected_port = ui->config->last_connected_port;
+   if (ui->config->last_connected_host && ui->config->last_connected_nick)
+     {
+        c->last_connected_host = strdup(ui->config->last_connected_host);
+        c->last_connected_nick = strdup(ui->config->last_connected_nick);
+        if (!c->last_connected_host || !c->last_connected_nick) goto allocation_failed;
+     }
    c->notify_private_messages = ui->config->notify_private_messages;
    c->enable_sounds = ui->config->enable_sounds;
    c->always_allow_external_links = ui->config->always_allow_external_links;
@@ -462,6 +469,14 @@ _initial_profile(Elaro_Ui *ui)
           }
         if (endpoint) return endpoint;
      }
+   if (ui->config->last_connected_host && ui->config->last_connected_nick)
+     {
+        EINA_LIST_FOREACH (ui->config->connections, node, saved)
+           if (saved->port == ui->config->last_connected_port
+               && !strcasecmp(saved->host, ui->config->last_connected_host)
+               && !strcasecmp(saved->nick, ui->config->last_connected_nick))
+              return saved;
+     }
    return eina_list_data_get(ui->config->connections);
 }
 
@@ -498,6 +513,7 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
 
    ui->connection.saved = elm_genlist_add(saved_box);
    evas_object_data_set(ui->connection.saved, "ui", ui);
+   elm_genlist_mode_set(ui->connection.saved, ELM_LIST_COMPRESS);
    elm_genlist_homogeneous_set(ui->connection.saved, EINA_TRUE);
    evas_object_size_hint_weight_set(ui->connection.saved, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
    evas_object_size_hint_align_set(ui->connection.saved, EVAS_HINT_FILL, EVAS_HINT_FILL);
@@ -508,6 +524,8 @@ elaro_ui_connection_show(void *data, Evas_Object *obj, void *info)
    evas_object_size_hint_align_set(list_slot, EVAS_HINT_FILL, EVAS_HINT_FILL);
 
    list_size = evas_object_rectangle_add(evas_object_evas_get(list_slot));
+   evas_object_size_hint_weight_set(list_size, EVAS_HINT_EXPAND, 0);
+   evas_object_size_hint_align_set(list_size, EVAS_HINT_FILL, EVAS_HINT_FILL);
    evas_object_color_set(list_size, 0, 0, 0, 0);
    evas_object_pass_events_set(list_size, EINA_TRUE);
    elaro_ui_size_min_set(list_size, 240, 72);

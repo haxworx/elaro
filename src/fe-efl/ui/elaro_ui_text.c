@@ -65,24 +65,38 @@ _append_escaped(Eina_Strbuf *out, const char *text, ssize_t length)
 }
 
 static void
-_append_text(Eina_Strbuf *out, Eina_Strbuf *text)
+_append_text(Eina_Strbuf *out, Eina_Strbuf *text, const char *nick, Elaro_Nick_Compare compare)
 {
    const char *cursor, *start, *end, *closing, *p;
+   const char *run = eina_strbuf_string_get(text);
+   size_t nick_length = nick ? strlen(nick) : 0;
    char opening;
    int balance;
    char *url, *attribute;
 
-   cursor = eina_strbuf_string_get(text);
+   cursor = run;
 
    while (*cursor)
      {
         start = cursor;
 
         while (*start && strncasecmp(start, "http://", 7) && strncasecmp(start, "https://", 8))
-           start++;
+          {
+             if (nick_length && elaro_nick_matches(run, start, nick, nick_length, compare))
+                break;
+             start++;
+          }
         _append_escaped(out, cursor, start - cursor);
 
         if (!*start) break;
+        if (strncasecmp(start, "http://", 7) && strncasecmp(start, "https://", 8))
+          {
+             eina_strbuf_append(out, "<mention>");
+             _append_escaped(out, start, nick_length);
+             eina_strbuf_append(out, "</mention>");
+             cursor = start + nick_length;
+             continue;
+          }
 
         end = start;
 
@@ -165,12 +179,14 @@ _color(const unsigned char *p, int digits, Eina_Bool hex)
 }
 
 char *
-elaro_ui_text_markup(const char *text)
+elaro_ui_text_message_markup(const char *text, size_t body_offset, const char *nick,
+                             Elaro_Nick_Compare compare)
 {
    Eina_Strbuf *out, *run;
    unsigned int flags;
    const unsigned char *p, *end, *background;
    unsigned char c;
+   const char *highlight = NULL;
 
    out = eina_strbuf_new();
    if (!out) return NULL;
@@ -180,11 +196,16 @@ elaro_ui_text_markup(const char *text)
 
    for (p = (const unsigned char *)text; *p;)
      {
+        if (nick && (size_t)(p - (const unsigned char *)text) == body_offset)
+          {
+             _append_text(out, run, NULL, NULL);
+             highlight = nick;
+          }
         c = *p++;
 
         if (c == 2 || c == 15 || c == 29 || c == 31)
           {
-             _append_text(out, run);
+             _append_text(out, run, highlight, compare);
              _styles(out, flags, EINA_FALSE);
              flags = c == 15 ? 0 : flags ^ (c == 2 ? 1u : c == 29 ? 2u : 4u);
              _styles(out, flags, EINA_TRUE);
@@ -207,7 +228,7 @@ elaro_ui_text_markup(const char *text)
              eina_strbuf_append_char(run, c);
           }
      }
-   _append_text(out, run);
+   _append_text(out, run, highlight, compare);
    _styles(out, flags, EINA_FALSE);
    eina_strbuf_free(run);
 
@@ -216,4 +237,10 @@ elaro_ui_text_markup(const char *text)
 allocation_failed:
    eina_strbuf_free(out);
    return NULL;
+}
+
+char *
+elaro_ui_text_markup(const char *text)
+{
+   return elaro_ui_text_message_markup(text, 0, NULL, NULL);
 }

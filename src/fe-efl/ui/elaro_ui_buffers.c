@@ -879,7 +879,8 @@ elaro_ui_buffer_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
         localtime_r(&now, &local);
         strftime(stamp, sizeof(stamp), "%H:%M", &local);
         plain = elaro_string_printf("[%s] %s", stamp, e->text);
-        safe = elaro_ui_text_markup(plain);
+        safe = elaro_ui_text_message_markup(plain, strlen(stamp) + 3 + e->body_offset,
+                                            e->highlight_nick, e->nick_compare);
         eina_strbuf_append(b->history, safe);
         eina_strbuf_append(b->history, "<br/>");
 
@@ -910,5 +911,14 @@ elaro_ui_buffer_event(Elaro_Ui *ui, const Elaro_Engine_Event *e)
 
         free(safe);
         free(plain);
+
+        if (e->disconnected && ui->current && *ui->current->target
+            && !strcasecmp(ui->current->server, e->server))
+          {
+             Elaro_Engine_Event copy = *e;
+             copy.target = ui->current->target;
+             copy.disconnected = false;
+             elaro_ui_buffer_event(ui, &copy);
+          }
      }
 }

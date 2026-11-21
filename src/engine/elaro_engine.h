@@ -3,6 +3,7 @@
 #define ELARO_ENGINE_H
 #include <stdbool.h>
 #include <stdint.h>
+#include "elaro_nick_match.h"
 
 typedef enum
 {
@@ -88,7 +89,12 @@ typedef struct
    char *host, *nick;
    int port;
    bool connected;
+   bool disconnected; /* Status line also shown in the selected conversation. */
    bool channel_message; /* Channel chat or action, excluding protocol/status events. */
+   /* Channel text formatting uses the nickname and casemapping at receipt. */
+   char *highlight_nick;
+   Elaro_Nick_Compare nick_compare;
+   size_t body_offset; /* Byte offset into text, after the sender prefix. */
    bool private_message;
    bool mention; /* Incoming channel message mentioning our current nickname. */
    unsigned int transfer_id, request_id;

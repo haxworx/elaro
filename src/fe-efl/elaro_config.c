@@ -34,6 +34,9 @@ _descriptor_new(Eet_Data_Descriptor *connection)
 
    if (connection)
      {
+        FIELD(last_connected_host, EET_T_STRING);
+        FIELD(last_connected_nick, EET_T_STRING);
+        FIELD(last_connected_port, EET_T_INT);
         FIELD(always_allow_external_links, EET_T_INT);
         FIELD(notify_private_messages, EET_T_INT);
         FIELD(enable_sounds, EET_T_INT);
@@ -77,6 +80,9 @@ elaro_config_connection_copy(const Elaro_Config *c)
    if (!copy) return NULL;
    *copy = *c;
    copy->connections = NULL;
+   copy->last_connected_host = NULL;
+   copy->last_connected_nick = NULL;
+   copy->last_connected_port = 0;
    copy->always_allow_external_links = EINA_FALSE;
    copy->notify_private_messages = EINA_FALSE;
    copy->enable_sounds = EINA_FALSE;
@@ -122,6 +128,8 @@ elaro_config_free(Elaro_Config *c)
 
    EINA_LIST_FREE (c->connections, connection)
       elaro_config_free(connection);
+   free(c->last_connected_host);
+   free(c->last_connected_nick);
    free(c->host);
    free(c->nick);
    free(c->username);

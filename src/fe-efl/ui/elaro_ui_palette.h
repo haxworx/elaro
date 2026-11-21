@@ -39,6 +39,7 @@ static const char *palette_classes[] = {
    "/fg/normal/combobox/button",
    "/fg/normal/combobox/selector",
    "/fg/normal/entry/anchor",
+   "/fg/normal/entry/mention",
    "/fg/normal/entry/cursor",
    "/fg/normal/entry/handler/end",
    "/fg/normal/entry/handler/start",

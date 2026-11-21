@@ -1,13 +1,16 @@
 #ifndef ELARO_CONFIG_H
 #define ELARO_CONFIG_H
 #include <Eina.h>
-#define ELARO_CONFIG_VERSION 12
+/* Bump this on config ABI changes. Version mismatches reset to defaults without migration. */
+#define ELARO_CONFIG_VERSION 13
 #define ELARO_OPACITY_MIN 25
 #define ELARO_OPACITY_MAX 100
 
 typedef struct _Elaro_Config
 {
    Eina_List *connections;
+   char *last_connected_host, *last_connected_nick;
+   int last_connected_port;
    int version, port, tls, sasl, auto_reconnect;
    int window_width, window_height;
    /* Runtime only: default dimensions are logical; saved dimensions are pixels. */

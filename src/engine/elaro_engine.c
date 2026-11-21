@@ -108,13 +108,6 @@ elaro_engine_event_push(Elaro_Engine_Event *event)
    _queue_push(active->events, active->event_pipe, event);
 }
 
-/* Nickname characters count as word characters, including RFC1459 punctuation. */
-static gboolean
-_nick_character(unsigned char c)
-{
-   return c >= 128 || g_ascii_isalnum(c) || (c && strchr("-[]\\`^{}_|", c));
-}
-
 static gboolean
 _nick_mentioned(IRC_SERVER_REC *server, const char *text)
 {
@@ -122,20 +115,14 @@ _nick_mentioned(IRC_SERVER_REC *server, const char *text)
    if (!length || !text) return FALSE;
    size_t remaining = strlen(text);
    for (const char *p = text; remaining >= length; p++, remaining--)
-     {
-        if (p != text && _nick_character((unsigned char)p[-1])) continue;
-        if (_nick_character((unsigned char)p[length])) continue;
-        char *candidate = g_strndup(p, length);
-        gboolean match = !server->nick_comp_func(candidate, server->nick);
-        g_free(candidate);
-        if (match) return TRUE;
-     }
+      if (elaro_nick_matches(text, p, server->nick, length, server->nick_comp_func)) return TRUE;
    return FALSE;
 }
 
 static void
 _emit_event_full(Elaro_Engine_Event_Type type, const char *server, const char *target,
-                 const char *text, bool private_message, bool mention, bool channel_message)
+                 const char *text, bool private_message, bool mention,
+                 const IRC_SERVER_REC *channel_server, const char *body)
 {
    Elaro_Engine_Event *e;
 
@@ -143,17 +130,25 @@ _emit_event_full(Elaro_Engine_Event_Type type, const char *server, const char *t
    e->type = type;
    e->private_message = private_message;
    e->mention = mention;
-   e->channel_message = channel_message;
+   e->channel_message = channel_server != NULL;
    e->server = g_strdup(server ? server : "Status");
    e->target = g_strdup(target ? target : "");
    e->text = g_utf8_make_valid(text ? text : "", -1);
+   if (channel_server && channel_server->nick && *channel_server->nick)
+     {
+        size_t prefix_length = strlen(text) - strlen(body);
+        g_autofree char *prefix = g_utf8_make_valid(text, prefix_length);
+        e->body_offset = strlen(prefix);
+        e->highlight_nick = g_strdup(channel_server->nick);
+        e->nick_compare = channel_server->nick_comp_func;
+     }
    elaro_engine_event_push(e);
 }
 
 static void
 _emit_event(Elaro_Engine_Event_Type type, const char *server, const char *target, const char *text)
 {
-   _emit_event_full(type, server, target, text, false, false, false);
+   _emit_event_full(type, server, target, text, false, false, NULL, NULL);
 }
 
 void
@@ -170,6 +165,7 @@ elaro_engine_event_free(Elaro_Engine_Event *e)
    g_free(e->users);
    g_free(e->host);
    g_free(e->nick);
+   g_free(e->highlight_nick);
    g_free(e->server);
    g_free(e->target);
    g_free(e->text);
@@ -188,6 +184,12 @@ _presence_emit(SERVER_REC *server, const char *nick, gboolean away)
    event->text = g_strdup("");
    event->away = away;
    elaro_engine_event_push(event);
+}
+
+static void
+_own_away_changed(SERVER_REC *server)
+{
+   _presence_emit(server, server->nick, server->usermode_away);
 }
 
 static char *
@@ -407,7 +409,6 @@ _connection_state(SERVER_REC *s, bool connected)
 static void
 _connected(SERVER_REC *s)
 {
-   _connection_state(s, true);
    _emit_event(ELARO_ENGINE_LINE, s->tag, "", "Connected");
 }
 
@@ -421,6 +422,7 @@ _registered(SERVER_REC *s)
         connection->attempts = 0;
         connection->registered = TRUE;
      }
+   _connection_state(s, true);
    if (s->connrec->channels && *s->connrec->channels)
       s->channels_join(s, s->connrec->channels, FALSE);
 }
@@ -431,7 +433,13 @@ _disconnected(SERVER_REC *s)
    Connection *connection = _connection_find(s->connrec);
    s->no_reconnect = TRUE;
    _connection_state(s, false);
-   _emit_event(ELARO_ENGINE_LINE, s->tag, "", "Disconnected");
+   Elaro_Engine_Event *event = g_new0(Elaro_Engine_Event, 1);
+   event->type = ELARO_ENGINE_LINE;
+   event->server = g_strdup(s->tag);
+   event->target = g_strdup("");
+   event->text = g_strdup("Disconnected");
+   event->disconnected = true;
+   elaro_engine_event_push(event);
    _emit_event(ELARO_ENGINE_PRESENCE_RESET, s->tag, "", "");
    GHashTableIter presence_iter;
    gpointer presence_key;
@@ -487,7 +495,7 @@ _action(IRC_SERVER_REC *s, const char *body, const char *nick, const char *addre
                     !channel && nick && address && *address && !s->nick_comp_func(target, s->nick)
                         && s->nick_comp_func(nick, s->nick),
                     channel && nick && s->nick_comp_func(nick, s->nick)
-                        && _nick_mentioned(s, body), channel);
+                        && _nick_mentioned(s, body), channel ? s : NULL, body);
    if (!channel && nick) _presence_known(SERVER(s), nick);
    g_free(text);
 }
@@ -547,7 +555,7 @@ _server_event(IRC_SERVER_REC *s, const char *line, const char *nick, const char 
    char *end;
    g_autofree char *membership_params = NULL;
 
-   char *copy, *args, *target, *text, *body, *victim;
+   char *copy, *args, *target, *text, *body = NULL, *victim;
    gboolean own_part, own_kick = FALSE, mention = FALSE, channel_message = FALSE;
 
    copy = g_strdup(line);
@@ -681,7 +689,7 @@ _server_event(IRC_SERVER_REC *s, const char *line, const char *nick, const char 
    _emit_event_full(ELARO_ENGINE_LINE, s->tag, own_part || own_kick ? NULL : target, text,
                     !g_ascii_strcasecmp(copy, "PRIVMSG") && target && nick && address && *address
                         && !server_ischannel(SERVER(s), args) && !s->nick_comp_func(args, s->nick)
-                        && s->nick_comp_func(nick, s->nick), mention, channel_message);
+                        && s->nick_comp_func(nick, s->nick), mention, channel_message ? s : NULL, body);
 
    if (target && !server_ischannel(SERVER(s), target)) _presence_known(SERVER(s), target);
 
@@ -1314,6 +1322,7 @@ _run(gpointer data)
    signal_add("event 311", (SIGNAL_FUNC)_user_details);
    signal_add_last("nicklist gone changed", (SIGNAL_FUNC)_nick_gone_changed);
    signal_add_last("event away", (SIGNAL_FUNC)_away_notify);
+   signal_add("away mode changed", (SIGNAL_FUNC)_own_away_changed);
    signal_add_full(MODULE_NAME, SIGNAL_PRIORITY_HIGH - 1, "event 311",
                    (SIGNAL_FUNC)_whois_presence_begin, NULL);
    signal_add_last("event 301", (SIGNAL_FUNC)_whois_presence_away);
@@ -1358,6 +1367,7 @@ _run(gpointer data)
    signal_remove("event 311", (SIGNAL_FUNC)_user_details);
    signal_remove("nicklist gone changed", (SIGNAL_FUNC)_nick_gone_changed);
    signal_remove("event away", (SIGNAL_FUNC)_away_notify);
+   signal_remove("away mode changed", (SIGNAL_FUNC)_own_away_changed);
    signal_remove("event 311", (SIGNAL_FUNC)_whois_presence_begin);
    signal_remove("event 301", (SIGNAL_FUNC)_whois_presence_away);
    signal_remove("whois away", (SIGNAL_FUNC)_whois_presence_away);
